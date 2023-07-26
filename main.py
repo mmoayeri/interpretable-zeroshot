@@ -1,6 +1,6 @@
 # import argparse
 from datasets import Breeds
-from models import Vicuna, CLIP, MaxOfMax, AverageSims, AverageVecs, AverageTopKSims
+from models import Vicuna, CLIP, MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageTopKSims
 from metrics import accuracy_metrics
 
 def main(args):
@@ -101,6 +101,9 @@ def main(args):
     elif 'average_top_' in args.predictor:
         k = int(args.predictor[-1])
         predictor = AverageTopKSims(k=k)
+    elif 'interpol_top_' in args.predictor:
+        k = int(args.predictor[-1])
+        predictor = LinearInterpolationAverageTopKSims(k=k, lamb=args.lamb)
     predictions, confidences = predictor.predict(image_embeddings, text_embeddings_by_cls)
 
 
@@ -127,7 +130,8 @@ def test_run_full_pipeline():
         'llm': 'vicuna-13b-v1.3',
         'llm_prompts': [('classname', None)],
         'vlm_prompts': ['a photo of a {}.'],
-        'predictor': 'average_vecs'
+        'predictor': 'interpol_top_2',
+        'lamb': 0.5
     })
 
     ### To get our oracle case, you can uncomment this

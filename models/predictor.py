@@ -61,6 +61,7 @@ class AverageVecs(Predictor):
 
         logits = []
         for i, (classname, embeddings_for_class) in enumerate(text_embeddings_by_cls.items()):
+            print(classname)
             avg_class_embedding = embeddings_for_class.mean(dim=0)
             sims_to_avg_vec = cos_sim(image_embeddings, avg_class_embedding)
             logits.append(sims_to_avg_vec)
@@ -119,3 +120,24 @@ class AverageTopKSims(Predictor):
         return torch.stack(logits, dim=1)
 
 
+class LinearInterpolationAverageTopKSims(Predictor):
+    def __init__(self, k: int, lamb: float = 0.5):
+        self.k = k
+        self.lamb = lamb 
+
+    def compute_logits(
+        self,
+        image_embeddings: Tensor,
+        text_embeddings_by_cls: Dict[str, Tensor]
+    ) -> Tensor:
+
+        logits = []
+        for _, embeddings_for_class in text_embeddings_by_cls.items():
+            sims = cos_sim(image_embeddings, embeddings_for_class)
+            top_k_sims = sims.topk(k=self.k, dim=1).values
+            avg_top_k_sims = top_k_sims.mean(1)
+            avg_sims = sims.mean(dim=1)
+            inter_sims = self.lamb * avg_sims + (1. - self.lamb) * avg_top_k_sims
+            logits.append(inter_sims)
+        
+        return torch.stack(logits, dim=1)
