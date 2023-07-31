@@ -107,7 +107,8 @@ class ClassificationDset(ABC, Dataset):
                     # other options include {classname} that is/has {attr} (like Vondrick)
                     # or perhaps something that is prompt specific: e.g. {attr}, a kind of {classname}
                     # subpop_descriptions_by_cls[classname].append(f'{attr} {classname}')
-                    subpop_descriptions_by_cls[classname].append(f'{attr}, a kind of {classname}')
+                    # subpop_descriptions_by_cls[classname].append(f'{attr}, a kind of {classname}')
+                    subpop_descriptions_by_cls[classname].append(f'{classname}: a {attr}') # like in waffleclip
         return subpop_descriptions_by_cls
     #     # Generate caption given classname and attribute name
 

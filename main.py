@@ -1,6 +1,9 @@
 # import argparse
 from datasets import Breeds
-from models import Vicuna, CLIP, MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
+# from models import Vicuna, CLIP, MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
+from models.vlm import CLIP
+from models.llm import Vicuna
+from models.predictor import MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
 from metrics import accuracy_metrics
 
 def main(args):
@@ -99,25 +102,27 @@ def main(args):
     elif args.predictor == 'average_sims':
         predictor = AverageSims()
     elif 'average_top_' in args.predictor:
-        k = int(args.predictor[-1])
+        k = int(args.predictor.split('_')[-1])
         predictor = AverageTopKSims(k=k)
     elif 'interpol_vecs_top_' in args.predictor:
-        k = int(args.predictor[-1])
+        k = int(args.predictor.split('_')[-1])
         predictor = LinearInterpolationAverageVecsTopk(k=k, lamb=args.lamb)
     elif 'interpol_sims_top_' in args.predictor:
-        k = int(args.predictor[-1])
+        k = int(args.predictor.split('_')[-1])
         predictor = LinearInterpolationAverageSimsTopK(k=k, lamb=args.lamb)
+    else:
+        raise ValueError(f'Predictor {args.predictor} not recognized. Is it implemented? Should be in ./models/predictor.py')
 
-    predictions, confidences = predictor.predict(image_embeddings, text_embeddings_by_cls)
+    predictions, confidences = predictor.predict(image_embeddings, text_embeddings_by_cls, dset.classnames)
 
 
     # 6. Compute metrics. 
-    acc, worst_class_acc, avg_worst_subpop_acc = accuracy_metrics(predictions, identifier_idx, dset)
+    metric_dict = accuracy_metrics(predictions, identifier_idx, dset)
     print(f'Dataset: {args.dsetname}, VLM: {args.vlm}, LLM: {args.llm}')
     print('LLM prompts (in (nickname, full prompt) format): \n' + "\n".join([f'({k}, {v})' for (k,v) in args.llm_prompts]))
     print(f'VLM prompts: {args.vlm_prompts}')
     print(f'Prediction consolidation strategy: {args.predictor}')
-    print(f'Accuracy: {acc:.2f}%, Worst class accuracy: {worst_class_acc:.2f}%, Avg Worst Subpop Acc:  {avg_worst_subpop_acc:.2f}%')
+    print(', '.join([f'{metric_name}: {metric_val:.2f}%' for (metric_name, metric_val) in metric_dict.items()]))
 
 
 # Look away! I don't feel like setting up argparse rn, especially if we might replace it (e.g. w hydra).
