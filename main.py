@@ -1,6 +1,5 @@
 # import argparse
 from datasets import Breeds
-# from models import Vicuna, CLIP, MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
 from models.vlm import CLIP
 from models.llm import Vicuna
 from models.predictor import MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
