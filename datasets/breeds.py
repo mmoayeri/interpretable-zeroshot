@@ -51,13 +51,13 @@ class Breeds(ClassificationDset):
             breeds_info = json.load(f)
         self.breeds_classes_to_inet_cls_idx = breeds_info[dsetname]
 
-        self.classes = list(self.breeds_classes_to_inet_cls_idx.keys())
-        self.cls_to_ind = dict({c:i for i,c in enumerate(self.classes)})
+        self.classnames = list(self.breeds_classes_to_inet_cls_idx.keys())
+        self.cls_to_ind = dict({c:i for i,c in enumerate(self.classnames)})
 
         # attribute definition is weird here, but we take it to be the prefix to the superclass name
         # e.g. for subgroup 'tiger cat' from class 'cat', attribute becomes 'tiger'
         self.attrs = []
-        self.attrs_by_class = dict({classname:[] for classname in self.classes})
+        self.attrs_by_class = dict({classname:[] for classname in self.classnames})
 
         for classname, inet_cls_idx in self.breeds_classes_to_inet_cls_idx.items():
             
@@ -118,11 +118,3 @@ class Breeds(ClassificationDset):
 
     def get_dsetname(self) -> str:
         return self.dsetname
-
-
-    # def combine_attr_and_cls(self, attr_ind, cls_ind):
-    #     # we include this line so that a string can be directly passed (i.e. from LLM) instead of indexing GT attrs
-    #     attr = self.attrs[attr_ind] if type(attr_ind) is int else attr_ind
-
-    #     return f'{attr}, a kind of {self.classes[cls_ind]}'
-    #     # return f'{attr} {self.classes[cls_ind]}'

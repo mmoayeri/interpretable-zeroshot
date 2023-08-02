@@ -24,7 +24,7 @@ def acc_by_class_and_subpop(is_correct: np.array, dset):
 
     acc_by_class, acc_by_subpop = dict(), dict()
 
-    for classname in dset.classes:
+    for classname in dset.classnames:
         
         idx_in_class = dset.idx_in_class(classname)
         acc_by_class[classname] = np.mean(is_correct[idx_in_class]) * 100
@@ -40,8 +40,6 @@ def acc_by_class_and_subpop(is_correct: np.array, dset):
 
 def accuracy_metrics(predictions: Tensor, idx: np.array, dset):
     is_correct = mark_as_correct(predictions, idx, dset)
-# def accuracy_metrics(pred_classnames: List[str], idx: np.array, dset):
-#     is_correct = mark_as_correct(pred_classnames, idx, dset)
     
     # Overall accuracy
     acc = np.mean(is_correct) * 100
@@ -61,4 +59,10 @@ def accuracy_metrics(predictions: Tensor, idx: np.array, dset):
     else:
         avg_worst_subpop_acc = -1
     
-    return acc, worst_class_acc, avg_worst_subpop_acc
+    metrics_dict = dict({
+        'accuracy': acc, 
+        'worst class accuracy': worst_class_acc,
+        'average worst subpop accuracy': avg_worst_subpop_acc
+    })
+
+    return metrics_dict

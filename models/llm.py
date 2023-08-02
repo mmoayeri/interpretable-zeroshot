@@ -32,7 +32,7 @@ class LLM(ABC):
         llm_prompts: List[Tuple[str, str]]
     ) -> Dict[str, List[str]]:
 
-        attrs_by_class = dict({classname: [] for classname in dset.classes})
+        attrs_by_class = dict({classname: [] for classname in dset.classnames})
         for prompt_nickname, llm_prompt in llm_prompts:
             # Two cases that do not need the LLM: classname only (no attr info) or GT attrs
             if prompt_nickname == 'classname':
@@ -40,7 +40,7 @@ class LLM(ABC):
                 # When forming a subpop description, the dataset objects will
                 # know to simply return the classname when attribute is None.
                 for classname in attrs_by_class:
-                    attrs_by_class[classname].append([None])
+                    attrs_by_class[classname].append(None)
             elif prompt_nickname == 'groundtruth':
                 assert dset.has_gt_attrs, f"LLM prompt nickname 'groundtruth' cannot \
                 be used for a dataset ({dset.get_dsetname()}) that is not attributed."
@@ -69,14 +69,14 @@ class LLM(ABC):
                     or delete that directory."
                     answers = dat['answers']
                 else:
-                    questions = [llm_prompt.format(classname) for classname in dset.classes]
+                    questions = [llm_prompt.format(classname) for classname in dset.classnames]
                     answers = self.answer_questions(questions)
                     # We save the exact prompt as well, since the directory name is actually just the 
                     # prompt nickname, which is intended to be a one word summary of llm_prompt
                     save_dict = dict({'answers': answers, 'llm_prompt': llm_prompt})
                     cache_data(cache_path, save_dict)
 
-                for i, classname in enumerate(dset.classes):
+                for i, classname in enumerate(dset.classnames):
                     attrs_in_answer = self.parse_answer(answers[i])
                     attrs_by_class[classname].extend(attrs_in_answer)
 

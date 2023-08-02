@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from torch import Tensor
 import torch
 
@@ -34,16 +34,17 @@ class Predictor(ABC):
     def predict(
         self, 
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor]
+        text_embeddings_by_cls: Dict[str, Tensor],
+        classnames: List[str]
     ) -> Tuple[Tensor, Tensor]:
         # given image embeddings and dict of text embeddings for each class, 
         # return predictions and confidences
         # note that the predictions
-        logits = self.compute_logits(image_embeddings, text_embeddings_by_cls)
+        logits = self.compute_logits(image_embeddings, text_embeddings_by_cls, classnames)
         preds = logits.argmax(1)
         probs = torch.nn.functional.softmax(logits, dim=1)
         confidences, preds = probs.max(1)
-        return preds, confidences 
+        return preds, confidences
 
         # classnames = list(text_embeddings_by_cls.keys())
         # pred_classnames = [classnames[i.item()] for i in preds]
@@ -56,11 +57,13 @@ class AverageVecs(Predictor):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor]
+        text_embeddings_by_cls: Dict[str, Tensor],
+        classnames: List[str]
     ) -> Tensor:
 
         logits = []
-        for i, (classname, embeddings_for_class) in enumerate(text_embeddings_by_cls.items()):
+        for classname in classnames:
+            embeddings_for_class = text_embeddings_by_cls[classname]
             avg_class_embedding = embeddings_for_class.mean(dim=0)
             sims_to_avg_vec = cos_sim(image_embeddings, avg_class_embedding)
             logits.append(sims_to_avg_vec)
@@ -72,11 +75,13 @@ class AverageSims(Predictor):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor] 
+        text_embeddings_by_cls: Dict[str, Tensor], 
+        classnames: List[str]
     ) -> Tensor:
 
         logits = []
-        for classname, embeddings_for_class in text_embeddings_by_cls.items():
+        for classname in classnames:
+            embeddings_for_class = text_embeddings_by_cls[classname]
             sims = cos_sim(image_embeddings, embeddings_for_class)
             avg_sims = sims.mean(dim=1)
             logits.append(avg_sims)
@@ -87,15 +92,17 @@ class MaxOfMax(Predictor):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor]
+        text_embeddings_by_cls: Dict[str, Tensor], 
+        classnames: List[str]
     ) -> Tensor: 
 
         logits = []
-        for classname, embeddings_for_class in text_embeddings_by_cls.items():
+        for classname in classnames:
+            embeddings_for_class = text_embeddings_by_cls[classname]
             sims = cos_sim(image_embeddings, embeddings_for_class)
             max_sims = sims.max(1).values
             logits.append(max_sims)
-
+        
         return torch.stack(logits, dim=1)
 
 
@@ -106,13 +113,15 @@ class AverageTopKSims(Predictor):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor]
+        text_embeddings_by_cls: Dict[str, Tensor], 
+        classnames: List[str]
     ) -> Tensor:
 
         logits = []
-        for classname, embeddings_for_class in text_embeddings_by_cls.items():
+        for classname in classnames:
+            embeddings_for_class = text_embeddings_by_cls[classname]
             sims = cos_sim(image_embeddings, embeddings_for_class)
-            top_k_sims = sims.topk(k=self.k, dim=1).values
+            top_k_sims = sims.topk(k=min(self.k, sims.shape[1]), dim=1).values
             avg_top_k_sims = top_k_sims.mean(1)
             logits.append(avg_top_k_sims)
         
@@ -127,7 +136,8 @@ class LinearInterpolationAverageSimsTopK(Predictor):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor]
+        text_embeddings_by_cls: Dict[str, Tensor], 
+        classnames: List[str]
     ) -> Tensor:
 
         logits = []
