@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from torch import Tensor
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from my_utils import cache_data, load_cached_data
 from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES
 import clip
@@ -41,31 +41,35 @@ class VLM(ABC):
         # tensors as desired by vlm.image_encoder
         raise NotImplementedError
 
-    def embed_all_images(self, dset) -> Tensor:
+    def embed_all_images(self, dset) -> Tuple[Tensor, List[str]]:
         cache_path = os.path.join(_CACHED_DATA_ROOT, 
                                     'image_embeddings', 
                                     self.get_modelname(), 
                                     f'{dset.get_dsetname()}.pkl')
         if os.path.exists(cache_path):
             dat = load_cached_data(cache_path)
-            image_embeddings, identifier_idx = [dat[x] for x in ['image_embeddings', 'identifier_idx']]
+            image_embeddings, identifiers = [dat[x] for x in ['image_embeddings', 'identifiers']]
         else:
             dset.transform = self.get_image_transform()
             loader = torch.utils.data.DataLoader(dset, batch_size=self.batch_size)
-            image_embeddings, identifier_idx = [], []
+            image_embeddings, identifiers = [], []
             for dat in tqdm(loader):
                 with torch.no_grad():
+                    # print(len(dat))
+                    # imgs, curr_ids, label_dicts = dat
+                    # identifiers.extend(curr_ids)
+
                     imgs = dat[0]
-                    identifier_idx.extend(dat[1])
+                    # print(len(imgs))
+                    identifiers.extend(dat[1])
                     batch_embeddings = self.encode_image_batch(imgs)#.flatten(1)
                     image_embeddings.extend(batch_embeddings)#.detach().cpu().numpy())
             image_embeddings = torch.vstack(image_embeddings)
-            identifier_idx = np.array(identifier_idx)
 
-            data_to_cache = dict({'image_embeddings': image_embeddings, 'identifier_idx':identifier_idx})
+            data_to_cache = dict({'image_embeddings': image_embeddings, 'identifiers':identifiers})
             cache_data(cache_path, data_to_cache)
         
-        return image_embeddings, identifier_idx
+        return image_embeddings, identifiers
 
     def embed_subpopulation_descriptions(
         self, 
