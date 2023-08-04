@@ -137,6 +137,7 @@ def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
         'dsetname': 'dollarstreet_Region',
+        # 'dsetname': 'living17',
         'vlm': 'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.3',
         'llm_prompts': [('classname', None)],
@@ -145,14 +146,15 @@ def test_run_full_pipeline():
         'lamb': 0.5
     })
 
-    ### To get our oracle case, you can uncomment this
+    ## To get our oracle case, you can uncomment this
     args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None)]
     ### Or to use LLM prompts, you can try one of these!
     # args_as_dict['llm_prompts'] = [('classname', None), ('kinds', 'List 16 different kinds of {}. Only use up to three words per list item.')]
+    # args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None), ('kinds_regions_incomes', 'List 16 ways in which a {} appear differently across diverse incomes and geographic regions. Use up to three words per list item.')]
 
     ### And to play with prediction consolidation strategy, you can do one of these
     # args_as_dict['predictor'] = 'max_of_max'
-    args_as_dict['predictor'] = 'average_top_4'
+    args_as_dict['predictor'] = 'average_top_2'
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
     # args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']

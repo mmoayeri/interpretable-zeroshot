@@ -12,7 +12,7 @@ class DollarstreetDataset(ClassificationDset):
 
     def __init__(
         self,
-        # og_meta_data_path: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/house_separated_with_metadata/test.csv",
+        attr_col = "Region",
         og_meta_data_path: str = "/checkpoint/mazda/dollarstreet_test_house_separated_with_metadata_copy.csv",
         data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
         transform=transforms.Compose(
@@ -20,24 +20,13 @@ class DollarstreetDataset(ClassificationDset):
                 transforms.Resize(256),
                 transforms.CenterCrop(224),
                 transforms.ToTensor()
-                # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
             ]
-        ),
-        attr_col = "Region",
-        # label_col="imagenet_synset_id",  # replace with 'topic_indicies' to get original dollarstreet label index instead of ImageNet
-        # label_col="topics",  # replace with 'topic_indicies' to get original dollarstreet label index instead of ImageNet
+        )
     ):
         self.dsetname = 'dollarstreet'
         self.og_meta_data = pd.read_csv(og_meta_data_path, index_col=0).reset_index()
         self.data_dir = data_dir
         self.transform = transform
-        # self.label_col = label_col
-        # self.og_meta_data[label_col] = self.file[label_col].apply(literal_eval)
-
-        # if "imagenet" in label_col:
-        #     print("Using 1k mapping for DollarStreet")
-        # else:
-        #     print("Using DollarStreet original labels")
 
         if attr_col == "Region":
             print('Using Region as attribute for Dollarstreet')
@@ -49,7 +38,7 @@ class DollarstreetDataset(ClassificationDset):
             raise ValueError(f"Invalid attr_col: {attr_col}. Must be one of Region, country.name, or Income_Group.")
 
         self.attr_col = attr_col
-        ### self.collect_instances is responsible for creating self.data_df and self.attrs_by_class
+        ### self.collect_instances is responsible for creating self.data_df and self.gt_attrs_by_class
         self.collect_instances()
 
         ### We will save the list of identifier strings (image_paths) now, at initialization.
