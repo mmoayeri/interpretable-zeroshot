@@ -42,7 +42,9 @@ class VLM(ABC):
         raise NotImplementedError
 
     def embed_all_images(self, dset) -> Tensor:
-        cache_path = os.path.join(_CACHED_DATA_ROOT, 
+        # cache_path = os.path.join(_CACHED_DATA_ROOT, 
+        #DEBUG 
+        cache_path = os.path.join("/checkpoint/dianeb/mmmd_results", 
                                     'image_embeddings', 
                                     self.get_modelname(), 
                                     f'{dset.get_dsetname()}.pkl')

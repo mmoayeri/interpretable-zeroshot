@@ -99,7 +99,7 @@ class ClassificationDset(ABC, Dataset):
         for classname, attrs in attrs_by_class.items():
             subpop_descriptions_by_cls[classname] = []
             for attr in attrs:
-                if attr is None:
+                if attr == 'None':
                     # This is for our Vanilla case, where we just pass the classname
                     subpop_descriptions_by_cls[classname].append(classname)
                 else:
