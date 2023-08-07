@@ -56,7 +56,7 @@ class LLM(ABC):
                     _CACHED_DATA_ROOT,
                     'subpops_from_llm',
                     prompt_nickname,
-                    self.get_modelname(), 'tmp',
+                    self.get_modelname(),
                     dset.get_dsetname()
                 ) + '.pkl'
                 print(cache_path)
@@ -78,8 +78,6 @@ class LLM(ABC):
                     save_dict = dict({'answers': answers, 'llm_prompt': llm_prompt})
                     cache_data(cache_path, save_dict)
 
-                # for i, classname in enumerate(dset.classnames):
-                    # attrs_in_answer = self.parse_answer(answers[i])
                 for classname, answer in answers.items():
                     attrs_in_answer = self.parse_answer(answer)
                     attrs_by_class[classname].extend(attrs_in_answer)
@@ -129,7 +127,4 @@ class Vicuna(LLM):
         # sometimes there is a period at the end of a response, we remove that as well
         cleaned_answers = [ans.split('. ')[-1].strip().replace('.', '') for ans in individual_answers]
         return cleaned_answers
-
-
-        # subpops = [[word_and_num.split('.')[-1].strip() for word_and_num in o.split('\n')] for o in outputs]
 

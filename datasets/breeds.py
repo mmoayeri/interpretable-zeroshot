@@ -70,24 +70,6 @@ class Breeds(ClassificationDset):
         ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
         self.static_img_path_list = self.data_df.index.tolist()
 
-    def __len__(self):
-        return len(self.data_df)
-
-    def __getitem__(self, ind: int):
-        img_path = self.static_img_path_list[ind]
-        row = self.data_df.loc[img_path]
-        # row = self.data_df.loc[self.data_df['img_path'] == identifier].iloc[0]
-        valid_classnames, attr = [row[x] for x in ['valid_classnames', 'attr']]
-
-        img = Image.open(img_path).convert('RGB')
-
-        if self.transform:
-            img = self.transform(img)
-
-        label_dict = dict({'valid_classnames': valid_classnames, 'attr': attr})
-        
-        return img, img_path, label_dict
-
     def collect_instances(self):
         img_paths, valid_classnames, attrs, class_idx = [], [], [], []
 
@@ -102,7 +84,6 @@ class Breeds(ClassificationDset):
                 N_imgs_in_subpop = len(curr_img_paths)
 
                 valid_classnames.extend([[classname]]*N_imgs_in_subpop)
-                # class_idx.extend([self.cls_to_ind[classname]]*N_imgs_in_subpop)
 
                 attr = _IMAGENET_CLASSNAMES[inet_cls_ind]
                 attrs.extend([attr]*N_imgs_in_subpop)
@@ -110,27 +91,3 @@ class Breeds(ClassificationDset):
         data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, attrs)), 
                                     columns=['img_path', 'valid_classnames', 'attr'])
         self.data_df = data_df.set_index('img_path')
-        # self.data_df = pd.DataFrame(list(zip(img_paths, classnames, attrs, class_idx)), columns=['img_path', 'class', 'attr', 'cls_idx'])
-
-    def gt_attrs_by_class(self, classname) -> Dict[str, List[str]]:
-        return self.attrs_by_class[classname]
-
-    def mask_for_class(self, classname: str):
-        in_class_fn = lambda valid_classnames: classname in valid_classnames
-        mask = self.data_df['valid_classnames'].apply(in_class_fn)
-        return mask
-
-    def ids_for_class(self, classname: str) -> pd.Series:
-        return self.data_df.index[self.mask_for_class(classname)]
-
-    def ids_for_subpop(self, classname: str, attr: str) -> pd.Series:
-        mask1 = self.mask_for_class(classname)
-        mask2 = self.data_df['attr'] == attr
-        return self.data_df.index[mask1 & mask2]
-
-    def get_dsetname(self) -> str:
-        return self.dsetname
-
-    def valid_classnames_for_id(self, identifier: str) -> List[str]:
-        row = self.data_df.loc[identifier]
-        return row['valid_classnames']

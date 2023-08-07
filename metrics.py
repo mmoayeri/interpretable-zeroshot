@@ -4,13 +4,7 @@ from torch import Tensor
 from typing import List, Dict
 
 
-# def mark_as_correct(predictions: Tensor, ids: List[str], dset) -> Dict[str, bool]:
 def mark_as_correct(pred_classnames: List[str], ids: List[str], dset) -> Dict[str, bool]:
-
-    # labels = dset.get_labels_in_given_order(idx)
-
-    # if dset.is_multilabel:
-        # is_correct = [pred.item() in labels[i] for i, pred in enumerate(predictions)]
 
     is_correct_by_id = dict({identifier: (pred_classname in dset.valid_classnames_for_id(identifier))
                     for pred_classname, identifier in zip(pred_classnames, ids)})
@@ -44,7 +38,6 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset) -> Dict[s
     # We also want worst class and avg worst subpop accuracy
     acc_by_class, acc_by_subpop = acc_by_class_and_subpop(is_correct_by_id, dset)
 
-    # print(acc_by_class)
     # for c in acc_by_subpop:
     #     print(c, acc_by_subpop[c])
     # print(acc_by_subpop)

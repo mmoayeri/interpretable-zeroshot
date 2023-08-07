@@ -55,12 +55,7 @@ class VLM(ABC):
             image_embeddings, identifiers = [], []
             for dat in tqdm(loader):
                 with torch.no_grad():
-                    # print(len(dat))
-                    # imgs, curr_ids, label_dicts = dat
-                    # identifiers.extend(curr_ids)
-
                     imgs = dat[0]
-                    # print(len(imgs))
                     identifiers.extend(dat[1])
                     batch_embeddings = self.encode_image_batch(imgs)#.flatten(1)
                     image_embeddings.extend(batch_embeddings)#.detach().cpu().numpy())
