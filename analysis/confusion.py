@@ -36,7 +36,7 @@ def main(args):
     
     # 2. Get image embeddings
     image_embeddings, identifier_idx = vlm.embed_all_images(dset)
-
+    import pdb; pdb.set_trace()
     # 3a. Set up LLM object.
     if 'vicuna' in args.llm:
         llm = Vicuna(model_key = args.llm)

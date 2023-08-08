@@ -9,6 +9,7 @@ import os
 import json
 from constants import _IMAGENET_CLASSNAMES, _CACHED_DATA_ROOT
 from datasets.base_dataset import ClassificationDset
+from typing import List, Dict
 
 standard_transform = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()])
 
@@ -21,7 +22,6 @@ class Breeds(ClassificationDset):
     Options for dsetname are entity13, entity30, living17, nonliving26
     """
 
-    is_multilabel = False
     has_gt_attrs = True
 
     def __init__(
@@ -32,7 +32,6 @@ class Breeds(ClassificationDset):
         inet_split='val', 
         breeds_info_path='/private/home/mazda/multiple_cls_vecs/datasets/breeds_info.json'
     ):
-        # super().__init__()
         ''' data_dir should correspond to your ImageNet path, as Living17 is a subset of it. '''
         self.dsetname = dsetname
         
@@ -52,10 +51,7 @@ class Breeds(ClassificationDset):
         self.breeds_classes_to_inet_cls_idx = breeds_info[dsetname]
 
         self.classnames = list(self.breeds_classes_to_inet_cls_idx.keys())
-        self.cls_to_ind = dict({c:i for i,c in enumerate(self.classnames)})
 
-        # attribute definition is weird here, but we take it to be the prefix to the superclass name
-        # e.g. for subgroup 'tiger cat' from class 'cat', attribute becomes 'tiger'
         self.attrs = []
         self.attrs_by_class = dict({classname:[] for classname in self.classnames})
 
@@ -64,26 +60,16 @@ class Breeds(ClassificationDset):
             for inet_cls_ind in inet_cls_idx:
                 attr = _IMAGENET_CLASSNAMES[inet_cls_ind]
                 self.attrs.append(attr)
-                self.attrs_by_class[classname].append(attr)#_ind)
+                self.attrs_by_class[classname].append(attr)
 
         self.collect_instances()
 
-    def __len__(self):
-        return len(self.data_df)
-
-    def __getitem__(self, ind):
-        img_path, classname, attr, cls_ind = self.data_df.iloc[ind]
-        img = Image.open(img_path).convert('RGB')
-
-        if self.transform:
-            img = self.transform(img)
-
-        label_dict = dict({'classname': classname, 'attr': attr})
-        
-        return img, ind, label_dict
+        ### We will save the list of identifier strings (image_paths) now, at initialization.
+        ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
+        self.static_img_path_list = self.data_df.index.tolist()
 
     def collect_instances(self):
-        img_paths, classnames, attrs, class_idx = [], [], [], []
+        img_paths, valid_classnames, attrs, class_idx = [], [], [], []
 
         # Recall, each Breeds class consists of the union of images from a set of ImageNet classes
         # inet_cls_idx_in_class is the set of ImageNet classes that compose the current Breeds class
@@ -95,26 +81,11 @@ class Breeds(ClassificationDset):
                 img_paths.extend(curr_img_paths)
                 N_imgs_in_subpop = len(curr_img_paths)
 
-                classnames.extend([classname]*N_imgs_in_subpop)
-                class_idx.extend([self.cls_to_ind[classname]]*N_imgs_in_subpop)
+                valid_classnames.extend([[classname]]*N_imgs_in_subpop)
 
                 attr = _IMAGENET_CLASSNAMES[inet_cls_ind]
                 attrs.extend([attr]*N_imgs_in_subpop)
 
-        self.data_df = pd.DataFrame(list(zip(img_paths, classnames, attrs, class_idx)), columns=['img_path', 'class', 'attr', 'cls_idx'])
-
-    def gt_attrs_by_class(self, classname):
-        return self.attrs_by_class[classname]
-
-    def idx_in_class(self, classname: str) -> np.array:
-        return self.data_df.index[self.data_df['class'] == classname].to_numpy()
-
-    def idx_in_subpop(self, classname: str, attr: str) -> np.array:
-        return self.data_df.index[(self.data_df['class'] == classname) & (self.data_df['attr'] == attr)].to_numpy()
-
-    def get_labels_in_given_order(self, idx: np.array) -> np.array:
-        labels = self.data_df['cls_idx'].to_numpy()
-        return labels[idx]
-
-    def get_dsetname(self) -> str:
-        return self.dsetname
+        data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, attrs)), 
+                                    columns=['img_path', 'valid_classnames', 'attr'])
+        self.data_df = data_df.set_index('img_path')
