@@ -13,7 +13,7 @@ class DollarstreetDataset(ClassificationDset):
     def __init__(
         self,
         attr_col = "Region",
-        og_meta_data_path: str = "/checkpoint/mazda/dollarstreet_test_house_separated_with_metadata_copy.csv",
+        og_meta_data_path: str = "/checkpoint/mazda/dollarstreet_test_house_separated_with_metadata.csv",
         data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
         transform=transforms.Compose(
             [
@@ -28,18 +28,20 @@ class DollarstreetDataset(ClassificationDset):
         self.data_dir = data_dir
         self.transform = transform
 
-        if attr_col == "Region":
-            print('Using Region as attribute for Dollarstreet')
+        if attr_col == "region":
+            print('Using region as attribute for Dollarstreet')
         elif attr_col == "country.name":
-            print('Using Country Name as attribute for Dollarstreet')
-        elif attr_col == "Income_Group":
-            print('Using Income Group as attribute for Dollarstreet')
+            print('Using country name as attribute for Dollarstreet')
+        elif attr_col == "income_group":
+            print('Using income group as attribute for Dollarstreet')
         else:
             raise ValueError(f"Invalid attr_col: {attr_col}. Must be one of Region, country.name, or Income_Group.")
 
         self.attr_col = attr_col
-        ### self.collect_instances is responsible for creating self.data_df and self.gt_attrs_by_class
-        self.collect_instances()
+        ### self.collect_instances is responsible for creating self.data_df and attrs_by_class
+        self.attrs_by_class = self.collect_instances()
+        ### Order of classnames doesn't really matter anymore btw. 
+        self.classnames = list(attrs_by_class.keys())
 
         ### We will save the list of identifier strings (image_paths) now, at initialization.
         ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
@@ -73,6 +75,4 @@ class DollarstreetDataset(ClassificationDset):
                                     columns=['img_path', 'valid_classnames', 'attr'])
         self.data_df = data_df.set_index('img_path')
 
-        self.attrs_by_class = attrs_by_class
-        ### Order of classnames doesn't really matter anymore btw. 
-        self.classnames = list(self.attrs_by_class.keys())
+        return attrs_by_class

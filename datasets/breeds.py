@@ -22,7 +22,6 @@ class Breeds(ClassificationDset):
     Options for dsetname are entity13, entity30, living17, nonliving26
     """
 
-    # is_multilabel = False
     has_gt_attrs = True
 
     def __init__(
@@ -52,7 +51,6 @@ class Breeds(ClassificationDset):
         self.breeds_classes_to_inet_cls_idx = breeds_info[dsetname]
 
         self.classnames = list(self.breeds_classes_to_inet_cls_idx.keys())
-        # self.cls_to_ind = dict({c:i for i,c in enumerate(self.classnames)})
 
         self.attrs = []
         self.attrs_by_class = dict({classname:[] for classname in self.classnames})
@@ -62,7 +60,7 @@ class Breeds(ClassificationDset):
             for inet_cls_ind in inet_cls_idx:
                 attr = _IMAGENET_CLASSNAMES[inet_cls_ind]
                 self.attrs.append(attr)
-                self.attrs_by_class[classname].append(attr)#_ind)
+                self.attrs_by_class[classname].append(attr)
 
         self.collect_instances()
 

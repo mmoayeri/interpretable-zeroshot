@@ -59,7 +59,7 @@ def main(args):
     if args.dsetname in ['living17', 'entity30', 'entity13', 'nonliving26']:
         dset = Breeds(dsetname=args.dsetname)
     elif 'dollarstreet' in args.dsetname:
-        attr = args.dsetname.split('_')[-1]
+        attr = args.dsetname.split('__')[-1]
         dset = DollarstreetDataset(attr_col = attr)
     elif args.dsetname == 'mit_states':
         dset = MITStates()
@@ -136,8 +136,9 @@ class Config(object):
 def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
-        # 'dsetname': 'dollarstreet_country.name',
-        'dsetname': 'living17',
+        'dsetname': 'dollarstreet__income_group',
+        # 'dsetname': 'dollarstreet__country.name',
+        # 'dsetname': 'living17',
         'vlm': 'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.3',
         'llm_prompts': [('classname', None)],

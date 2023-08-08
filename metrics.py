@@ -5,7 +5,12 @@ from typing import List, Dict
 
 
 def mark_as_correct(pred_classnames: List[str], ids: List[str], dset) -> Dict[str, bool]:
-
+    '''
+    Returns a dictionary with (key, value) pairs as follows:
+        - key: identifier for a sample (i.e. it's full image path)
+        - value: a boolean, which is True if the sample was predicted correctly. Specifically, 
+                 if the single predicted classname was amongst valid classnames for that sample.
+    '''
     is_correct_by_id = dict({identifier: (pred_classname in dset.valid_classnames_for_id(identifier))
                     for pred_classname, identifier in zip(pred_classnames, ids)})
     
