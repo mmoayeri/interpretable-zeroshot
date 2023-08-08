@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple
 from fastchat.model import load_model, get_conversation_template, add_model_args
 import torch
 import os
+from tqdm import tqdm
 
 class LLM(ABC):
 
@@ -58,6 +59,7 @@ class LLM(ABC):
                     self.get_modelname(),
                     dset.get_dsetname()
                 ) + '.pkl'
+                print(cache_path)
 
                 if os.path.exists(cache_path):
                     dat = load_cached_data(cache_path)
@@ -69,15 +71,15 @@ class LLM(ABC):
                     or delete that directory."
                     answers = dat['answers']
                 else:
-                    questions = [llm_prompt.format(classname) for classname in dset.classnames]
-                    answers = self.answer_questions(questions)
+                    answers = dict({classname:self.answer_questions([llm_prompt.format(classname)])[0] 
+                                        for classname in tqdm(dset.classnames)})
                     # We save the exact prompt as well, since the directory name is actually just the 
                     # prompt nickname, which is intended to be a one word summary of llm_prompt
                     save_dict = dict({'answers': answers, 'llm_prompt': llm_prompt})
                     cache_data(cache_path, save_dict)
 
-                for i, classname in enumerate(dset.classnames):
-                    attrs_in_answer = self.parse_answer(answers[i])
+                for classname, answer in answers.items():
+                    attrs_in_answer = self.parse_answer(answer)
                     attrs_by_class[classname].extend(attrs_in_answer)
 
         return attrs_by_class
@@ -125,7 +127,4 @@ class Vicuna(LLM):
         # sometimes there is a period at the end of a response, we remove that as well
         cleaned_answers = [ans.split('. ')[-1].strip().replace('.', '') for ans in individual_answers]
         return cleaned_answers
-
-
-        # subpops = [[word_and_num.split('.')[-1].strip() for word_and_num in o.split('\n')] for o in outputs]
 

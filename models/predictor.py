@@ -36,19 +36,15 @@ class Predictor(ABC):
         image_embeddings: Tensor,
         text_embeddings_by_cls: Dict[str, Tensor],
         classnames: List[str]
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tuple[List[str], Tensor]:
         # given image embeddings and dict of text embeddings for each class, 
-        # return predictions and confidences
-        # note that the predictions
+        # return predicted classnames and confidences
         logits = self.compute_logits(image_embeddings, text_embeddings_by_cls, classnames)
-        preds = logits.argmax(1)
         probs = torch.nn.functional.softmax(logits, dim=1)
         confidences, preds = probs.max(1)
-        return preds, confidences
 
-        # classnames = list(text_embeddings_by_cls.keys())
-        # pred_classnames = [classnames[i.item()] for i in preds]
-        # return pred_classnames, confidences 
+        pred_classnames = [classnames[i.item()] for i in preds]
+        return pred_classnames, confidences
 
 
 class AverageVecs(Predictor):
