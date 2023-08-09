@@ -41,7 +41,7 @@ class DollarstreetDataset(ClassificationDset):
         ### self.collect_instances is responsible for creating self.data_df and attrs_by_class
         self.attrs_by_class = self.collect_instances()
         ### Order of classnames doesn't really matter anymore btw. 
-        self.classnames = list(attrs_by_class.keys())
+        self.classnames = list(self.attrs_by_class.keys())
 
         ### We will save the list of identifier strings (image_paths) now, at initialization.
         ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
