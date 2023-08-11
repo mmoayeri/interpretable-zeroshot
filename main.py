@@ -5,6 +5,22 @@ from models.llm import Vicuna
 from models.predictor import MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
 from metrics import accuracy_metrics
 
+def load_dataset(args):
+
+   ### Experiment mode: we want the output for a whole dataset, not just a single image
+    # 1a. Load dataset
+    if args.dsetname in ['living17', 'entity30', 'entity13', 'nonliving26']:
+        dset = Breeds(dsetname=args.dsetname)
+    elif 'dollarstreet' in args.dsetname:
+        attr = args.dsetname.split('__')[-1]
+        dset = DollarstreetDataset(attr_col = attr)
+    elif args.dsetname == 'mit_states':
+        dset = MITStates()
+    else:
+        raise ValueError(f'Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory.')
+
+    return dset
+
 def main(args):
     '''
     Needed arguments for a single run:
@@ -56,16 +72,7 @@ def main(args):
 
     ### Experiment mode: we want the output for a whole dataset, not just a single image
     # 1a. Load dataset
-    if args.dsetname in ['living17', 'entity30', 'entity13', 'nonliving26']:
-        dset = Breeds(dsetname=args.dsetname)
-    elif 'dollarstreet' in args.dsetname:
-        attr = args.dsetname.split('__')[-1]
-        dset = DollarstreetDataset(attr_col = attr)
-    elif args.dsetname == 'mit_states':
-        dset = MITStates()
-    else:
-        raise ValueError(f'Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory.')
-
+    dset = load_dataset(args)
 
     # 1b. Load VLM
     if 'clip' in args.vlm:

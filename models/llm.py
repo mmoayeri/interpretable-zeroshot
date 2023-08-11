@@ -77,7 +77,6 @@ class LLM(ABC):
                     # prompt nickname, which is intended to be a one word summary of llm_prompt
                     save_dict = dict({'answers': answers, 'llm_prompt': llm_prompt})
                     cache_data(cache_path, save_dict)
-
                 for classname, answer in answers.items():
                     attrs_in_answer = self.parse_answer(answer)
                     attrs_by_class[classname].extend(attrs_in_answer)

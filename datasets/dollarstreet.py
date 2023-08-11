@@ -12,7 +12,7 @@ class DollarstreetDataset(ClassificationDset):
 
     def __init__(
         self,
-        attr_col = "Region",
+        attr_col = "region",
         og_meta_data_path: str = "/checkpoint/mazda/dollarstreet_test_house_separated_with_metadata.csv",
         data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
         transform=transforms.Compose(
@@ -35,7 +35,7 @@ class DollarstreetDataset(ClassificationDset):
         elif attr_col == "income_group":
             print('Using income group as attribute for Dollarstreet')
         else:
-            raise ValueError(f"Invalid attr_col: {attr_col}. Must be one of Region, country.name, or Income_Group.")
+            raise ValueError(f"Invalid attr_col: {attr_col}. Must be one of region, country.name, or Income_Group.")
 
         self.attr_col = attr_col
         ### self.collect_instances is responsible for creating self.data_df and attrs_by_class

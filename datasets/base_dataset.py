@@ -93,7 +93,7 @@ class ClassificationDset(ABC, Dataset):
         for classname, attrs in attrs_by_class.items():
             subpop_descriptions_by_cls[classname] = []
             for attr in attrs:
-                if attr == 'None':
+                if attr is None:
                     # This is for our Vanilla case, where we just pass the classname
                     subpop_descriptions_by_cls[classname].append(classname)
                 else:
@@ -103,5 +103,5 @@ class ClassificationDset(ABC, Dataset):
                     # subpop_descriptions_by_cls[classname].append(f'{attr} {classname}')
                     subpop_descriptions_by_cls[classname].append(f'{attr}, a kind of {classname}')
                     # subpop_descriptions_by_cls[classname].append(f'{classname}: from {attr}') # like in waffleclip
-                    subpop_descriptions_by_cls[classname].append(f'{classname} from a {attr} country') # like in waffleclip
+                    # subpop_descriptions_by_cls[classname].append(f'{classname} from a {attr} country') # like in waffleclip
         return subpop_descriptions_by_cls
