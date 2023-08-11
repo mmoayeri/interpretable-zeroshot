@@ -142,7 +142,7 @@ def test_run_full_pipeline():
         'vlm': 'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.5',
         'llm_prompts': [('classname', None)],
-        # 'vlm_prompts': ['a photo of a {}.'],
+        'vlm_prompts': ['a photo of a {}.'],
         # 'predictor': 'interpol_sims_top_2',
         # 'lamb': 0.5
     })
@@ -159,7 +159,7 @@ def test_run_full_pipeline():
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
     args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
-    args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
+    # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
 
     args = Config(args_as_dict)
     _ = main(args)
