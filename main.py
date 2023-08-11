@@ -48,9 +48,9 @@ def main(args):
     4. Embed subpopulations to VLM space, resulting in dictionary of (cls_ind, tensor of subpop embeddings)
     key-value pairs. Note that we embed a string s by averaging VLM.encode_text(VLM_prompt.format(s)) over VLM_prompts
     
-    5. Make predictions, following prediction consolidation strategy. Returns prediction and confidence per image.
+    5. Make pred_classnames, following prediction consolidation strategy. Returns prediction and confidence per image.
 
-    6. Compute metrics. Inputs are dataset object and predictions (and confidences, for calibration error)
+    6. Compute metrics. Inputs are dataset object and pred_classnames (and confidences, for calibration error)
 
     '''
 
@@ -73,7 +73,6 @@ def main(args):
         vlm = CLIP(model_key=model_key)
     else:
         raise ValueError(f'VLM {args.vlm} not recognized. Is it implemented? Should be in in ./models/vlm.py')
-    
     # 2. Get image embeddings
     image_embeddings, identifiers = vlm.embed_all_images(dset)
 
@@ -115,17 +114,19 @@ def main(args):
     else:
         raise ValueError(f'Predictor {args.predictor} not recognized. Is it implemented? Should be in ./models/predictor.py')
 
-    predictions, confidences = predictor.predict(image_embeddings, text_embeddings_by_cls, dset.classnames)
+    pred_classnames, confidences = predictor.predict(image_embeddings, text_embeddings_by_cls, dset.classnames)
 
 
     # 6. Compute metrics. 
-    metric_dict = accuracy_metrics(predictions, identifiers, dset)
+    metric_dict = accuracy_metrics(pred_classnames, identifiers, dset)
     print(f'Dataset: {args.dsetname}, VLM: {args.vlm}, LLM: {args.llm}')
     print('LLM prompts (in (nickname, full prompt) format): \n' + "\n".join([f'({k}, {v})' for (k,v) in args.llm_prompts]))
     print(f'VLM prompts: {args.vlm_prompts}')
     print(f'Prediction consolidation strategy: {args.predictor}')
     print(', '.join([f'{metric_name}: {metric_val:.2f}%' for (metric_name, metric_val) in metric_dict.items()]))
-
+    
+    output_dict = dict({'pred_classnames':pred_classnames, 'identifiers': identifiers, 'metric_dict':metric_dict, 'dset': dset})
+    return output_dict
 
 # Look away! I don't feel like setting up argparse rn, especially if we might replace it (e.g. w hydra).
 # Yes this is ridiculous and yes fixing it is something TODO
@@ -136,34 +137,32 @@ class Config(object):
 def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
-        'dsetname': 'dollarstreet__income_group',
-        # 'dsetname': 'dollarstreet__country.name',
+        'dsetname': 'dollarstreet__country.name',
         # 'dsetname': 'living17',
         'vlm': 'clip_ViT-B/16',
-        'llm': 'vicuna-13b-v1.3',
+        'llm': 'vicuna-13b-v1.5',
         'llm_prompts': [('classname', None)],
-        'vlm_prompts': ['a photo of a {}.'],
-        'predictor': 'interpol_sims_top_2',
-        'lamb': 0.5
+        # 'vlm_prompts': ['a photo of a {}.'],
+        # 'predictor': 'interpol_sims_top_2',
+        # 'lamb': 0.5
     })
 
     ## To get our oracle case, you can uncomment this
     args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None)]
     ### Or to use LLM prompts, you can try one of these!
     # args_as_dict['llm_prompts'] = [('classname', None), ('kinds', 'List 16 different kinds of {}. Only use up to three words per list item.')]
-    # args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None), ('kinds_regions_incomes', 'List 16 ways in which a {} appear differently across diverse incomes and geographic regions. Use up to three words per list item.')]
+    # args_as_dict['llm_prompts'] = [('classname', None), ('kinds_regions_incomes', 'List 16 different ways in which a {} may appear across diverse geographic regions and incomes. Only use up to three words per list item.')]
 
     ### And to play with prediction consolidation strategy, you can do one of these
-    args_as_dict['predictor'] = 'max_of_max'
-    # args_as_dict['predictor'] = 'average_top_2'
+    # args_as_dict['predictor'] = 'max_of_max'
+    args_as_dict['predictor'] = 'average_top_6'
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
     args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
-
-
+    args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
 
     args = Config(args_as_dict)
-    main(args)
+    _ = main(args)
 
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
