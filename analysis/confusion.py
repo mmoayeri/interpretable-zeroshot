@@ -42,7 +42,6 @@ def main(args):
     dset = load_dataset(args)
 
     # STEP 1: get the vanilla model predictions
-
     if "clip" in args.vlm:
         model_key = args.vlm.split("clip_")[-1]
         vlm = CLIP(model_key=model_key)
@@ -52,7 +51,6 @@ def main(args):
         )
 
     image_embeddings, identifiers = vlm.embed_all_images(dset)
-    # 3a. Set up LLM object.
     if "vicuna" in args.llm:
         llm = Vicuna(model_key=args.llm)
     else:
@@ -67,12 +65,16 @@ def main(args):
     )
 
     predictor = AverageVecs()
-    predictions, confidences = predictor.predict(
+    predictions, _ = predictor.predict(
         image_embeddings, text_embeddings_by_cls, dset.classnames
     )
 
     confusion_mat = confusion_matrix_computation(dset, predictions, identifiers)
 
+    # STEP 2: study subpopulations text vectors 
+    attrs_by_class = llm.infer_attrs(dset, args.llm_prompts)
+    subpops_by_class = dset.subpop_descriptions_from_attrs(attrs_by_class)
+    text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(subpops_by_class, args.vlm_prompts)
 
 if __name__ == "__main__":
     args = main_arguments(sys.argv[1:])
