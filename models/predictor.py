@@ -140,7 +140,7 @@ class LinearInterpolationAverageSimsTopK(Predictor):
         for _, embeddings_for_class in text_embeddings_by_cls.items():
             sims = cos_sim(image_embeddings, embeddings_for_class)
             
-            top_k_sims = sims.topk(k=self.k, dim=1).values
+            top_k_sims = sims.topk(k=min(self.k, embeddings_for_class.shape[0]), dim=1).values
             avg_top_k_sims = top_k_sims.mean(1)
             avg_sims = self.get_average_sims(sims, image_embeddings, embeddings_for_class)
 
