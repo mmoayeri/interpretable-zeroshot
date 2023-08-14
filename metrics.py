@@ -43,7 +43,7 @@ def acc_by_class_and_subpop(is_correct_by_id: Dict[str, bool], dset, min_cnt: in
     return acc_by_class, acc_by_subpop
 
 
-def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: str=False) -> Dict[str, float]:
+def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: bool=False) -> Dict[str, float]:
     is_correct_by_id = mark_as_correct(pred_classnames, ids, dset)
     
     # Overall accuracy
