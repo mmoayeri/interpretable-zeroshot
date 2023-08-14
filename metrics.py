@@ -43,7 +43,7 @@ def acc_by_class_and_subpop(is_correct_by_id: Dict[str, bool], dset, min_cnt: in
     return acc_by_class, acc_by_subpop
 
 
-def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset) -> Dict[str, float]:
+def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: str=False) -> Dict[str, float]:
     is_correct_by_id = mark_as_correct(pred_classnames, ids, dset)
     
     # Overall accuracy
@@ -51,12 +51,14 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset) -> Dict[s
     # We also want worst class and avg worst subpop accuracy
     acc_by_class, acc_by_subpop = acc_by_class_and_subpop(is_correct_by_id, dset)
 
-    # sorted_acc_by_class = dict(sorted(acc_by_class.items(), key=lambda x:x[1]))
-    # for c, class_acc in sorted_acc_by_class.items():
-    #     print(c, class_acc)
-    # for c in acc_by_subpop:
-    #     print(c, acc_by_subpop[c])
-    # print(acc_by_subpop)
+    if verbose: 
+        print('CLASSES BY ACCURACY')
+        sorted_acc_by_class = dict(sorted(acc_by_class.items(), key=lambda x:x[1]))
+        for c, class_acc in sorted_acc_by_class.items():
+            print(c, class_acc)
+        print('\nCLASS and GT SUBPOPS w/ ACCURACIES')
+        for c in acc_by_subpop:
+            print(c, acc_by_subpop[c])
 
     worst_class_acc = np.min(list(acc_by_class.values()))
 

@@ -69,7 +69,7 @@ class DollarstreetDataset(ClassificationDset):
         classnames = list(set(classnames))
         return classnames
 
-    def set_attribute_column(self, attr_col: str):
+    def set_attribute_column(self, attr_col: str) -> None:
         assert attr_col in self.allowed_attr_cols, f'Invalid attr_col: {attr_col}. Must be one of {", ".join(self.allowed_attr_cols)}.'
         print(f'Setting {attr_col} as attribute for Dollarstreet (i.e. subpopulations will be defined by a classname and {attr_col})')
         self.data_df['attr'] = self.data_df[attr_col]

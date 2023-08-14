@@ -143,8 +143,8 @@ def test_run_full_pipeline():
         'llm': 'vicuna-13b-v1.5',
         'llm_prompts': [('classname', None)],
         'vlm_prompts': ['a photo of a {}.'],
-        # 'predictor': 'interpol_sims_top_2',
-        # 'lamb': 0.5
+        'predictor': 'interpol_sims_top_2',
+        'lamb': 0.5
     })
 
     ## To get our oracle case, you can uncomment this

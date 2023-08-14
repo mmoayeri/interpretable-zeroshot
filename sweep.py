@@ -4,8 +4,14 @@ from constants import _CACHED_DATA_ROOT
 from models.llm import LLM, Vicuna
 import pandas as pd
 import os
+from typing import List, Tuple, Optional
 
-def sweep(all_dsetnames, all_llm_prompts, all_vlm_prompts, all_predictors, save_path=None):
+def sweep(
+    all_dsetnames: List[str], 
+    all_llm_prompts: List[List[Tuple[str, str]]], 
+    all_vlm_prompts: List[List[str]], 
+    all_predictors: List[str], 
+    save_path: Optional[str]=None) -> pd.DataFrame:
     '''
     Simple function to run a ton of experiments
     Will need to be changed a bit when we revamp the attribute inference logic. 
