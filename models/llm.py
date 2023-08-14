@@ -59,7 +59,6 @@ class LLM(ABC):
                     self.get_modelname(),
                     dset.get_dsetname()
                 ) + '.pkl'
-                print(cache_path)
 
                 if os.path.exists(cache_path):
                     dat = load_cached_data(cache_path)
@@ -106,7 +105,7 @@ class Vicuna(LLM):
         if self.model == 'NOT YET LOADED':
             self.set_up_model()
 
-        prompt_list = ['User: '+q+'\nAssistant: ' for q in questions]
+        prompt_list = ['User: '+q+'\nAssistant:' for q in questions]
         input_ids = self.tokenizer(prompt_list, padding=True).input_ids
         input_tens = torch.tensor(input_ids).cuda()
         output_ids = self.model.generate(input_tens, do_sample=True, temperature=0.7, repetition_penalty=1, max_new_tokens=512)

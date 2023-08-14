@@ -2,6 +2,16 @@
 
 _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
 
+_CONDENSED_OPENAI_TEMPLATES = [
+    "itap of a {}.",
+    "a bad photo of the {}.",
+    "a origami {}.",
+    "a photo of the large {}.",
+    "a {} in a video game.",
+    "art of the {}.",
+    "a photo of the small {}.",
+]
+
 
 _IMAGENET_OPENAI_TEMPLATES = [
     'a bad photo of a {}.',
