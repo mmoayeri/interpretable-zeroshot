@@ -28,3 +28,19 @@ class TestBLIP2:
         text_features = blip2.encode_texts(["a dog"], ["what is "])
 
         assert text_features.shape == (1, 4, 768)
+
+    def test_blip2_projected_feature_extraction(self):
+        device = "cpu"
+        blip2 = BLIP2(device=device)
+        raw_image = Image.open(requests.get(self.IMAGE_URL, stream=True).raw).convert(
+            "RGB"
+        )
+
+        image = blip2.vis_processors["eval"](raw_image).unsqueeze(0).to(device)
+
+        image_features = blip2.encode_image_batch(image, project_embeddings=True)
+        assert image_features.shape == (1, 32, 256)
+
+        text_features = blip2.encode_texts(["a dog"], ["what is "], project_embeddings=True)
+        assert text_features.shape == (1, 4, 256)
+

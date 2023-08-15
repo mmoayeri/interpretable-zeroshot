@@ -168,11 +168,19 @@ class BLIP2(VLM):
             device=device,
         )
 
-    def encode_image_batch(self, imgs: Tensor) -> Tensor:
+    def encode_image_batch(
+        self, imgs: Tensor, project_embeddings: bool = False
+    ) -> Tensor:
+        """project_embeddings extracts embeddings post-projections which is often used in zero shot"""
         with torch.no_grad():
-            image_embeddings = self.model.extract_features(
-                {"image": imgs}, mode="image"
-            ).image_embeds
+            if project_embeddings:
+                image_embeddings = self.model.extract_features(
+                    {"image": imgs}, mode="image"
+                ).image_embeds_proj
+            else:
+                image_embeddings = self.model.extract_features(
+                    {"image": imgs}, mode="image"
+                ).image_embeds
         return image_embeddings
 
     def build_text_inputs(
@@ -183,7 +191,13 @@ class BLIP2(VLM):
             text_inputs.extend([vlm_prompt.format(text) for text in texts])
         return text_inputs
 
-    def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
+    def encode_texts(
+        self,
+        texts: List[str],
+        vlm_prompt_templates: List[str],
+        project_embeddings: bool = False,
+    ) -> Tensor:
+        """project_embeddings extracts embeddings post-projections which is often used in zero shot"""
         text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
         with torch.no_grad():
             processed_text_inputs = []
@@ -191,9 +205,14 @@ class BLIP2(VLM):
                 processed_text_input = self.txt_processors["eval"](text_input)
                 processed_text_inputs.append(processed_text_input)
 
-            text_embeddings = self.model.extract_features(
-                {"text_input": processed_text_inputs}, mode="text"
-            ).text_embeds
+            if project_embeddings:
+                text_embeddings = self.model.extract_features(
+                    {"text_input": processed_text_inputs}, mode="text"
+                ).text_embeds_proj
+            else:
+                text_embeddings = self.model.extract_features(
+                    {"text_input": processed_text_inputs}, mode="text"
+                ).text_embeds
         return text_embeddings
 
     def get_image_transform(self):
