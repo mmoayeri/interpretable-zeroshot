@@ -13,6 +13,9 @@ Tests:
 
 ## BLIP2
 
+Install `pip install salesforce-lavis`
+
+For InstructBLIP special installation is required (see below).
 
 ## InstructBLIP
 
