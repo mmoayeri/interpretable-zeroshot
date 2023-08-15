@@ -10,11 +10,7 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 import requests
-from transformers import (
-    InstructBlipProcessor,
-    InstructBlipForConditionalGeneration,
-    InstructBlipVisionModel,
-)
+from lavis.models import load_model_and_preprocess
 
 
 class VLM(ABC):
@@ -143,8 +139,56 @@ class CLIP(VLM):
         return self.transform
 
 
+class BLIP2(VLM):
+    """Implements a VLM  for BLIP2 model
+    based  on https://github.com/salesforce/LAVIS/blob/3446bac20c5646d35ae383ebe6d13cec4f8b00cb/examples/blip2_feature_extraction.ipynb
+    """
+
+    def __init__(self, frozen_text_encoder: str = "default", device: str = "cuda"):
+        self.frozen_text_encoder = frozen_text_encoder
+        if frozen_text_encoder != "default":
+            raise ValueError(f"{frozen_text_encoder} not supported")
+        self.device = device
+
+        (
+            self.model,
+            self.vis_processors,
+            self.txt_processors,
+        ) = load_model_and_preprocess(
+            name="blip2_feature_extractor",
+            model_type="pretrain",
+            is_eval=True,
+            device=device,
+        )
+
+    def encode_image_batch(self, imgs: Tensor) -> Tensor:
+        with torch.no_grad():
+            image_embeddings = self.model.extract_features(
+                {"image": imgs}, mode="image"
+            ).image_embeds
+        return image_embeddings
+
+    def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
+        with torch.no_grad():
+            text_embeddings = []
+            for text in texts:
+                templated_text = [
+                    vlm_prompt.format(text) for vlm_prompt in vlm_prompt_templates
+                ]
+                tokens = clip.tokenize(templated_text).cuda()  # tokenize
+                embedded = self.model.encode_text(tokens)  # embed with text encoder
+                embedded /= embedded.norm(
+                    dim=-1, keepdim=True
+                )  # normalize to hypersphere
+                embedded = embedded.mean(dim=0)  # average over vlm_prompts
+                embedded /= embedded.norm()  # normalize again to hypersphere
+                text_embeddings.append(embedded)
+            text_embeddings = torch.stack(text_embeddings, dim=0).cuda()
+        return text_embeddings
+
+
 class InstructBLIP(VLM):
-    """Implements a VML class for InstructBLIP, the latest iteration on BLIP2.
+    """Implements a VLM class for InstructBLIP, the latest iteration on BLIP2.
 
     Requires installing LAVIS locally and downloading VICUNA weights
         see https://github.com/salesforce/LAVIS/tree/main/projects/instructblip
@@ -159,38 +203,33 @@ class InstructBLIP(VLM):
 
     def __init__(self, frozen_text_encoder: str = "vicuna-7b", device: str = "cuda"):
         self.frozen_text_encoder = frozen_text_encoder
+        if frozen_text_encoder != "vicuna-7b":
+            raise ValueError(f"{frozen_text_encoder} not supported")
         self.device = device
-        self.generative_model = InstructBlipForConditionalGeneration.from_pretrained(
-            f"Salesforce/instructblip-{frozen_text_encoder}"
-        )
-        self.processor = InstructBlipProcessor.from_pretrained(
-            f"Salesforce/instructblip-{frozen_text_encoder}"
+
+        (
+            self.model,
+            self.vis_processors,
+            self.text_processors,
+        ) = load_model_and_preprocess(
+            name="blip2_vicuna_instruct",
+            model_type=frozen_text_encoder,
+            is_eval=True,
+            device=device,
         )
 
     def generate_image_conditioned_text(
         self,
-        image_url: str = "https://raw.githubusercontent.com/salesforce/LAVIS/main/docs/_static/Confusing-Pictures.jpg",
+        image: Tensor,
         prompt="Can you tell me about this image in detail?",
     ) -> str:
-        image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
-        inputs = self.processor(images=image, text=prompt, return_tensors="pt").to(
-            self.device
-        )
+        """Returns generated text based on image.
 
-        outputs = self.generative_model.generate(
-            **inputs,
-            do_sample=False,
-            num_beams=5,
-            max_length=256,
-            min_length=1,
-            top_p=0.9,
-            repetition_penalty=1.5,
-            length_penalty=1.0,
-            temperature=1,
-        )
-        generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[
-            0
-        ].strip()
+        Args:
+            image: tensor of shape (batch size, 3, 224, 224)
+                image is expected to be processed using vis_processors
+        """
+        generated_text = self.model.generate({"image": image, "prompt": prompt})
         return generated_text
 
     def encode_image_batch(self, imgs: Tensor) -> Tensor:
