@@ -5,8 +5,16 @@ New cleaner version of mmmd repo, which allows for running the whole pipeline en
 
 *WORK IN PROGRESS*
 
+Tests:
+`python -m pytest tests/`
 
-# InstructBLIP
+# BLIP
+
+
+## BLIP2
+
+
+## InstructBLIP
 
 Installation:
 

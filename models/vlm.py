@@ -2,7 +2,11 @@ from abc import ABC, abstractmethod
 from torch import Tensor
 from typing import Dict, List, Tuple
 from my_utils import cache_data, load_cached_data
-from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES, _CONDENSED_OPENAI_TEMPLATES
+from constants import (
+    _CACHED_DATA_ROOT,
+    _IMAGENET_OPENAI_TEMPLATES,
+    _CONDENSED_OPENAI_TEMPLATES,
+)
 import clip
 import os
 import torch
@@ -87,7 +91,7 @@ class VLM(ABC):
 
         if vlm_prompt_templates == ["USE OPENAI IMAGENET TEMPLATES"]:
             vlm_prompt_templates = _IMAGENET_OPENAI_TEMPLATES
-        elif vlm_prompt_templates == ['USE CONDENSED OPENAI TEMPLATES']:
+        elif vlm_prompt_templates == ["USE CONDENSED OPENAI TEMPLATES"]:
             vlm_prompt_templates = _CONDENSED_OPENAI_TEMPLATES
 
         embeddings_by_cls = dict(
@@ -142,7 +146,8 @@ class CLIP(VLM):
 
 
 class BLIP2(VLM):
-    """Implements a VLM  for BLIP2 model
+    """
+    Implements a VLM  for BLIP2 model
     based  on https://github.com/salesforce/LAVIS/blob/3446bac20c5646d35ae383ebe6d13cec4f8b00cb/examples/blip2_feature_extraction.ipynb
     """
 
@@ -181,12 +186,30 @@ class BLIP2(VLM):
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
         text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
         with torch.no_grad():
-            text_embeddings = None
+            processed_text_inputs = []
+            for text_input in text_inputs:
+                processed_text_input = self.txt_processors["eval"](text_input)
+                processed_text_inputs.append(processed_text_input)
+
+            text_embeddings = self.model.extract_features(
+                {"text_input": processed_text_inputs}, mode="text"
+            ).text_embeds
         return text_embeddings
+
+    def get_image_transform(self):
+        return self.vis_processors
+
+    def get_modelname(self) -> str:
+        return "BLIP-2"
+
+    def get_batchsize(self) -> int:
+        return 64
 
 
 class InstructBLIP(VLM):
-    """Implements a VLM class for InstructBLIP, the latest iteration on BLIP2.
+    """
+    TODO: need to figure out feature extraction for this model.
+    Implements a VLM class for InstructBLIP, the latest iteration on BLIP2.
 
     Requires installing LAVIS locally and downloading VICUNA weights
         see https://github.com/salesforce/LAVIS/tree/main/projects/instructblip
