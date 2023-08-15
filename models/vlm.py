@@ -168,22 +168,18 @@ class BLIP2(VLM):
             ).image_embeds
         return image_embeddings
 
+    def build_text_inputs(
+        self, texts: List[str], vlm_prompt_templates: List[str]
+    ) -> List[str]:
+        text_inputs = []
+        for vlm_prompt in vlm_prompt_templates:
+            text_inputs.extend([vlm_prompt.format(text) for text in texts])
+        return text_inputs
+
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
+        text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
         with torch.no_grad():
-            text_embeddings = []
-            for text in texts:
-                templated_text = [
-                    vlm_prompt.format(text) for vlm_prompt in vlm_prompt_templates
-                ]
-                tokens = clip.tokenize(templated_text).cuda()  # tokenize
-                embedded = self.model.encode_text(tokens)  # embed with text encoder
-                embedded /= embedded.norm(
-                    dim=-1, keepdim=True
-                )  # normalize to hypersphere
-                embedded = embedded.mean(dim=0)  # average over vlm_prompts
-                embedded /= embedded.norm()  # normalize again to hypersphere
-                text_embeddings.append(embedded)
-            text_embeddings = torch.stack(text_embeddings, dim=0).cuda()
+            text_embeddings = None
         return text_embeddings
 
 
