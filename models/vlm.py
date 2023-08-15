@@ -274,8 +274,30 @@ class InstructBLIP(VLM):
         generated_text = self.model.generate({"image": image, "prompt": prompt})
         return generated_text
 
-    def encode_image_batch(self, imgs: Tensor) -> Tensor:
+    def encode_image_batch(self, images: Tensor) -> Tensor:
         raise NotImplemented
+
+    def _encode_image(self, images: Tensor) -> Tensor:
+        """Based on feature_extraction from BLIP2.
+        https://github.com/salesforce/LAVIS/blob/f982acc73288408bceda2d35471a8fcf55aa04ca/lavis/models/blip2_models/blip2_qformer.py#L387
+        """
+        image_embeds_frozen = self.model.ln_vision(self.model.visual_encoder(images))
+        image_embeds_frozen = image_embeds_frozen.float()
+        image_atts = torch.ones(image_embeds_frozen.size()[:-1], dtype=torch.long).to(
+            self.device
+        )
+        query_tokens = self.model.query_tokens.expand(
+            image_embeds_frozen.shape[0], -1, -1
+        )
+
+        query_output = self.model.Qformer.bert(
+            query_embeds=query_tokens,
+            encoder_hidden_states=image_embeds_frozen,
+            encoder_attention_mask=image_atts,
+            return_dict=True,
+        )
+        image_embeds = query_output.last_hidden_state
+        return image_embeds
 
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
         raise NotImplemented
