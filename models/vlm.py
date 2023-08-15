@@ -8,6 +8,13 @@ import os
 import torch
 from tqdm import tqdm
 import numpy as np
+from PIL import Image
+import requests
+from transformers import (
+    InstructBlipProcessor,
+    InstructBlipForConditionalGeneration,
+    InstructBlipVisionModel,
+)
 
 
 class VLM(ABC):
@@ -136,6 +143,67 @@ class CLIP(VLM):
         return self.transform
 
 
-class BLIP2(VLM):
-    """Implements a VML class for BLIP2"""
-    pass
+class InstructBLIP(VLM):
+    """Implements a VML class for InstructBLIP, the latest iteration on BLIP2.
+
+    Requires installing LAVIS locally and downloading VICUNA weights
+        see https://github.com/salesforce/LAVIS/tree/main/projects/instructblip
+
+    Implements an extra
+        - `generate_image_conditioned_text` method
+
+    Args:
+        frozen_text_encoder: vicuna-7b or vicuna-13b
+        device: cuda or cpu (for running locally when GPU memory is insufficient)
+    """
+
+    def __init__(self, frozen_text_encoder: str = "vicuna-7b", device: str = "cuda"):
+        self.frozen_text_encoder = frozen_text_encoder
+        self.device = device
+        self.generative_model = InstructBlipForConditionalGeneration.from_pretrained(
+            f"Salesforce/instructblip-{frozen_text_encoder}"
+        )
+        self.processor = InstructBlipProcessor.from_pretrained(
+            f"Salesforce/instructblip-{frozen_text_encoder}"
+        )
+
+    def generate_image_conditioned_text(
+        self,
+        image_url: str = "https://raw.githubusercontent.com/salesforce/LAVIS/main/docs/_static/Confusing-Pictures.jpg",
+        prompt="Can you tell me about this image in detail?",
+    ) -> str:
+        image = Image.open(requests.get(image_url, stream=True).raw).convert("RGB")
+        inputs = self.processor(images=image, text=prompt, return_tensors="pt").to(
+            self.device
+        )
+
+        outputs = self.generative_model.generate(
+            **inputs,
+            do_sample=False,
+            num_beams=5,
+            max_length=256,
+            min_length=1,
+            top_p=0.9,
+            repetition_penalty=1.5,
+            length_penalty=1.0,
+            temperature=1,
+        )
+        generated_text = self.processor.batch_decode(outputs, skip_special_tokens=True)[
+            0
+        ].strip()
+        return generated_text
+
+    def encode_image_batch(self, imgs: Tensor) -> Tensor:
+        raise NotImplemented
+
+    def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
+        raise NotImplemented
+
+    def get_modelname(self) -> str:
+        return "clip__" + self.model_key.replace("/", "_")
+
+    def get_batchsize(self) -> int:
+        return self.batch_size
+
+    def get_image_transform(self):
+        return self.transform
