@@ -151,9 +151,11 @@ class BLIP2(VLM):
     based  on https://github.com/salesforce/LAVIS/blob/3446bac20c5646d35ae383ebe6d13cec4f8b00cb/examples/blip2_feature_extraction.ipynb
     """
 
-    def __init__(self, frozen_text_encoder: str = "default", device: str = "cuda"):
+    def __init__(
+        self, frozen_text_encoder: str = "bert-base-uncased", device: str = "cuda"
+    ):
         self.frozen_text_encoder = frozen_text_encoder
-        if frozen_text_encoder != "default":
+        if frozen_text_encoder != "bert-base-uncased":
             raise ValueError(f"{frozen_text_encoder} not supported")
         self.device = device
 
@@ -219,7 +221,7 @@ class BLIP2(VLM):
         return self.vis_processors
 
     def get_modelname(self) -> str:
-        return "BLIP-2"
+        return f"BLIP-2-{self.frozen_text_encode}"
 
     def get_batchsize(self) -> int:
         return 64
