@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from torch import Tensor
 from typing import Dict, List, Tuple
 from my_utils import cache_data, load_cached_data
-from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES
+from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES, _CONDENSED_OPENAI_TEMPLATES
 import clip
 import os
 import torch
@@ -87,6 +87,8 @@ class VLM(ABC):
 
         if vlm_prompt_templates == ["USE OPENAI IMAGENET TEMPLATES"]:
             vlm_prompt_templates = _IMAGENET_OPENAI_TEMPLATES
+        elif vlm_prompt_templates == ['USE CONDENSED OPENAI TEMPLATES']:
+            vlm_prompt_templates = _CONDENSED_OPENAI_TEMPLATES
 
         embeddings_by_cls = dict(
             {
@@ -101,7 +103,7 @@ class VLM(ABC):
 class CLIP(VLM):
     def __init__(self, model_key: str, batch_size: int = 64):
         self.model, self.transform = clip.load(model_key)
-        self.model = self.model.cuda()
+        self.model = self.model.cuda().eval()
         self.model_key = model_key
         self.batch_size = batch_size
 
@@ -126,7 +128,7 @@ class CLIP(VLM):
                 embedded = embedded.mean(dim=0)  # average over vlm_prompts
                 embedded /= embedded.norm()  # normalize again to hypersphere
                 text_embeddings.append(embedded)
-            text_embeddings = torch.stack(text_embeddings, dim=0).cuda()
+            text_embeddings = torch.stack(text_embeddings, dim=0)
         return text_embeddings
 
     def get_modelname(self) -> str:
