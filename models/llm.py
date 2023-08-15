@@ -48,6 +48,12 @@ class LLM(ABC):
                 for classname in attrs_by_class:
                     attrs_by_class[classname].extend(dset.gt_attrs_by_class(classname))
 
+            # elif prompt_nickname == 'dollarstreet_cheat':
+            #     for classname in attrs_by_class:
+            #         attrs_by_class[classname].extend([
+            #             ''
+            #         ])
+
             # Otherwise, we ask the LLM for attributes.
             else:    
                 # We cache LLM responses to avoid asking the LLM the same question

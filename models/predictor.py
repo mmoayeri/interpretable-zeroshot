@@ -163,3 +163,21 @@ class LinearInterpolationAverageVecsTopk(LinearInterpolationAverageSimsTopK):
         avg_class_embedding = embeddings_for_class.mean(dim=0)
         sims_to_avg_vec = cos_sim(image_embeddings, avg_class_embedding)
         return sims_to_avg_vec
+
+# class kNN(Predictor):
+#     def compute_logits(
+#         self,
+#         image_embeddings: Tensor,
+#         text_embeddings_by_cls: Dict[str, Tensor], 
+#         classnames: List[str],
+#         k: int = 10
+#     ) -> Tensor: 
+
+#         logits = []
+#         for classname in classnames:
+#             embeddings_for_class = text_embeddings_by_cls[classname]
+#             sims = cos_sim(image_embeddings, embeddings_for_class)
+#             max_sims = sims.max(1).values
+#             logits.append(max_sims)
+        
+#         return torch.stack(logits, dim=1)
