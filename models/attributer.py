@@ -220,7 +220,7 @@ class KindsRegionsIncomesQuery(LLMQuery):
         )
 
     def caption_subpop(self, classname: str, attr: str) -> str:
-        return f'{attr}, a kind of {classname}'
+        return f'{classname}: a {attr} {classname}'
 
 
 class LLMBased(Attributer):
@@ -287,7 +287,7 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
         attributer = IncomeLevels()
     # LLM based attributers
     elif 'llm_' in key:
-        query_key = attributer.split('llm_')[-1]
+        query_key = key.split('llm_')[-1]
         if query_key == 'kinds':
             query = KindsQuery()
         elif query_key == 'kinds_regions_incomes':

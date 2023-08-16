@@ -127,6 +127,7 @@ class Vicuna(LLM):
         individual_answers = answer.split('\n')
         # remove leading numbers like '1. '
         # sometimes there is a period at the end of a response, we remove that as well
-        cleaned_answers = [ans.split('. ')[-1].strip().replace('.', '') for ans in individual_answers]
+        # sometimes the llm says {axes of variance}: {instances} (e.g. Appearance: decorative); we just want the later part
+        cleaned_answers = [ans.split('. ')[-1].split(':')[-1].strip().replace('.', '') for ans in individual_answers]
         return cleaned_answers
 

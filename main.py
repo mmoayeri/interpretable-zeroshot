@@ -2,7 +2,6 @@
 from datasets import Breeds, DollarstreetDataset
 from models.vlm import CLIP
 from models.llm import Vicuna
-# from models.predictor import MaxOfMax, AverageSims, AverageVecs, AverageTopKSims, LinearInterpolationAverageSimsTopK, LinearInterpolationAverageVecsTopk
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
 from models.attributer import init_attributer, infer_attrs
 from metrics import accuracy_metrics
@@ -72,6 +71,7 @@ def main(args):
     print(f"Attributer keys: {', '.join(args.attributer_keys)}")
     print(f'VLM prompts: {args.vlm_prompts}')
     print(f'Prediction consolidation strategy: {args.predictor}')
+    print(f'VLM Prompt dim handling: {args.vlm_prompt_dim_handler}')
     print(', '.join([f'{metric_name}: {metric_val:.2f}%' for (metric_name, metric_val) in metric_dict.items()]))
     
     output_dict = dict({'pred_classnames':pred_classnames, 'identifiers': identifiers, 'metric_dict':metric_dict, 'dset': dset})
