@@ -2,11 +2,31 @@ from abc import ABC, abstractmethod
 from typing import Dict, List
 from models.llm import LLM
 import os
-from constants import _CACHED_DATA_ROOT
+from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES, _CONDENSED_OPENAI_TEMPLATES
 from my_utils import load_cached_data
 from datasets import ClassificationDset
 
 class Attributer(ABC):
+    '''
+    BASE CLASS FOR ATTRIBUTERS
+    Each attributer infers a list of attributes per classname.
+    Input always contains a list of classnames.
+
+    There other inputs specifc to certain types of attributer.
+      - For LLM inferred attributes, we also pass the LLM and an LLMQuery object
+        that explains what we are asking and how to form captions. 
+        See LLMQuery class(es) and LLMBased(Attributer) class below. 
+
+      - For Groundtruth attributes, we also pass a dataset (that has gt attrs)
+        See GroundTruths(Azttributer) class below. 
+
+    In practice, we use the subpop_captions_by_class function for each 
+    attributer, which returns a dictionary of (classname, list of subpop descriptions)
+    key-value pairs (e.g. ('fox', 'arctic fox, a kind of fox'))
+
+    Check attribute() function below to see how attribute inference 
+    is handled in end-to-end flow. 
+    '''
 
     @abstractmethod
     def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
@@ -23,18 +43,31 @@ class Attributer(ABC):
         '''
         raise NotImplementedError
 
-    def subpop_captions_by_class(self, classnames: List[str]):
+    def subpop_captions_by_class(self, classnames: List[str]) -> Dict[str, List[str]]:
         attrs_by_class = self.infer_attrs(classnames)
         return dict({
             classname: [self.caption_subpop(classname, attr) for attr in attrs]
                 for classname, attrs in attrs_by_class.items()
         })
 
-def attribute(
+
+def infer_attrs(
     classnames: List[str], 
     attributers: List[Attributer], 
-    vlm_prompts:List[str]
+    vlm_prompt_templates: List[str]
     ) -> Dict[str, Dict[str, List[str]]]:
+    '''
+    PRIMARY FUNCTION used in main.py.
+    Given a list of attributer objects, a list of classnames, and a list of vlm_prompts,
+    returns a dictionary with key per classname, and a *dictionary* as value.
+    That dictionary has subpopulation description as the key, and list of templated subpops
+    (determined by the vlm_prompts) as the value.
+
+    e.g. output dict may have a key of 'dog' with the value:
+    dict({'a labroader, a kind of dog': ['a photo of a labroader, a kind of dog', 'a drawing of a labroader, a kind of dog'],
+          'a pekingese, a kind of dog': ['a photo of a pekingese, a kind of dog', 'a drawing of a pekingese, a kind of dog']})
+    in the above example, vlm_prompts would be ['a photo of a {}', 'a drawing of a {}']
+    '''
     subpops_by_class = dict({classname: [] for classname in classnames})
     for attributer in attributers:
         curr_subpops_by_class = attributer.subpop_captions_by_class(classnames)
@@ -42,10 +75,17 @@ def attribute(
             subpops_by_class[classname].extend(subpops)
         
     subpops_by_class = dict({classname:list(set(subpops)) for classname, subpops in subpops_by_class.items()})
+
+    # replace some key word mome
+    if vlm_prompt_templates == ['USE OPENAI IMAGENET TEMPLATES']:
+        vlm_prompt_templates = _IMAGENET_OPENAI_TEMPLATES
+    elif vlm_prompt_templates == ['USE CONDENSED OPENAI TEMPLATES']:
+        vlm_prompt_templates = _CONDENSED_OPENAI_TEMPLATES
+
     # Now we build the 3D structure, allowing for averaging over vlm_prompts or not
     texts_by_subpop_by_class = dict({
         classname: dict({
-            subpop_caption: [template.format(subpop_caption) for template in vlm_prompts]
+            subpop_caption: [template.format(subpop_caption) for template in vlm_prompt_templates]
                 for subpop_caption in subpops
         }) for classname, subpops in subpops_by_class.items()
     })
@@ -118,7 +158,7 @@ class Countries(Attributer):
             'New Zealand', 'Fiji', 'Solomon Islands']
 
     def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
-        return dict({classname: self.income_levels for classname in classnames})
+        return dict({classname: self.countries for classname in classnames})
         
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname} from the country {attr}'
@@ -133,9 +173,26 @@ class GroundTruths(Attributer):
         return dict({classname: self.dset.gt_attrs_by_class(classname) for classname in classnames})
         
     def caption_subpop(self, classname: str, attr: str) -> str:
+        '''
+        Note that for dsets with gt attrs, we expect them to also provide
+        a method for captioning subpops formed by their gt attrs, which we 
+        use here. 
+        '''
         return self.dset.caption_gt_subpop(classname, attr)
 
 class LLMQuery(ABC):
+    '''
+    Simple config class to clean up how we handle LLM queries. 
+    Namely, we'll need to establish the full question we ask the 
+    LLM (e.g. 'List different kinds of {classname}') and the nickname
+    that we use in caching the LLM responses to a specific question
+    (to avoid having to repeat this step over and over).
+
+    Importantly, each query also has its own caption_subpop, which
+    combines a classname and attribute to a single string describing
+    the subpopulation defined by (classname, attr), exactly as in 
+    Attributer above. 
+    '''
     def __init__(self, nickname: str, question: str) -> None:
         self.nickname = nickname
         self.question = question
@@ -205,3 +262,39 @@ class LLMBased(Attributer):
 
     def caption_subpop(self, classname: str, attr: str):
         return self.llm_query.caption_subpop(classname, attr)
+
+def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
+    """
+    I'm hiding this ugly if block here to avoid having a ton of imports to main.
+    Maybe I can do this for all my ugly if blocks in main? Not super important.
+    
+    I'm not happy that I need to have arguments for dset and llm when we only
+    sometimes use them. Maybe better if we have like an init file that has imports
+    from everything and has a bunch of these init_attributer/dataset/predictor type fns. 
+    Again not very important.
+    """
+    # Baseline attributers
+    if key == 'vanilla':
+        attributer = ClassnameOnly()
+    elif key == 'ground_truth':
+        attributer = GroundTruths(dset)
+    # 'Global info' (i.e. class-agnostic) level attributers
+    elif key == 'region':
+        attributer = Regions()
+    elif key == 'country':
+        attributer = Countries()
+    elif key == 'income_level':
+        attributer = IncomeLevels()
+    # LLM based attributers
+    elif 'llm_' in key:
+        query_key = attributer.split('llm_')[-1]
+        if query_key == 'kinds':
+            query = KindsQuery()
+        elif query_key == 'kinds_regions_incomes':
+            query = KindsRegionsIncomesQuery()
+        else:
+            raise ValueError(f'Query key {query_key} for LLM based attributer (with key {key}) not recognized.')
+        attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())
+    else:
+        raise ValueError(f'Attributer key {key} not recognized.')
+    return attributer

@@ -1,0 +1,5 @@
+,dsetname,attributer_keys,vlm_prompts,predictor,vlm_prompt_dim_handler,accuracy,worst class accuracy,average worst subpop accuracy,std dev worst subpop accuracy
+0,dollarstreet__region,['vanilla'],['a photo of a {}'],max_of_max,average_and_norm_then_stack,39.657853810264385,0.0,31.545306872778784,26.97196531461662
+1,dollarstreet__region,['vanilla'],['a photo of a {}'],max_of_max,stack_all,39.657853810264385,0.0,31.545306872778784,26.97196531461662
+2,dollarstreet__region,['income_level'],['a photo of a {}'],max_of_max,average_and_norm_then_stack,43.434792268384804,0.0,35.203165456802175,25.817349381492498
+3,dollarstreet__region,['income_level'],['a photo of a {}'],max_of_max,stack_all,43.45700955343257,0.0,35.36382820675064,25.854753632567775
