@@ -70,24 +70,6 @@ class VLM(ABC):
         self, 
         texts_by_subpop_by_class: Dict[str, Dict[str, List[str]]]
     ) -> Dict[str, Dict[str, Tensor]]:
-    #     self, 
-    #     subpops_by_class: Dict[str, List[str]], 
-    #     vlm_prompt_templates: List[str]
-    # ) -> Dict[str, Tensor]:
-    #     # each class will have a Tensor of embeddings corresponding to the different subpopulation descriptions
-    #     # provided for the class. in the vanilla case, there will only be one description per class in subpops_by_class
-    #     # (i.e. just the classname), and so embeddings_by_cls.values() will consist of tensors of shape (1, d), where d is VLM dim 
-
-    #     if vlm_prompt_templates == ['USE OPENAI IMAGENET TEMPLATES']:
-    #         vlm_prompt_templates = _IMAGENET_OPENAI_TEMPLATES
-    #     elif vlm_prompt_templates == ['USE CONDENSED OPENAI TEMPLATES']:
-    #         vlm_prompt_templates = _CONDENSED_OPENAI_TEMPLATES
-
-    #     embeddings_by_cls = dict({
-    #         classname: self.encode_texts(subpop_descriptions, vlm_prompt_templates)
-    #             for classname, subpop_descriptions in subpops_by_class.items()
-    #     })
-        # return embeddings_by_cls
 
         embeddings_by_subpop_by_cls = dict({
             classname: dict({
@@ -110,22 +92,12 @@ class CLIP(VLM):
             image_embeddings /= image_embeddings.norm(dim=-1, keepdim=True)
         return image_embeddings
 
-    # def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
     def encode_texts(self, texts: List[str]) -> Tensor:
         with torch.no_grad():
             text_embeddings = []
             tokens = clip.tokenize(texts).cuda()
             text_embeddings = self.model.encode_text(tokens)
             text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
-            # for text in texts:
-            #     templated_text = [vlm_prompt.format(text) for vlm_prompt in vlm_prompt_templates]
-            #     tokens = clip.tokenize(templated_text).cuda()     # tokenize
-            #     embedded = self.model.encode_text(tokens)         # embed with text encoder
-            #     embedded /= embedded.norm(dim=-1, keepdim=True)   # normalize to hypersphere
-            #     embedded = embedded.mean(dim=0)                   # average over vlm_prompts
-            #     embedded /= embedded.norm()                       # normalize again to hypersphere
-            #     text_embeddings.append(embedded)
-            # text_embeddings = torch.stack(text_embeddings, dim=0)
         return text_embeddings
 
     def get_modelname(self) -> str:
