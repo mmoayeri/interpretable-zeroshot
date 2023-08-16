@@ -32,7 +32,11 @@ class LLM(ABC):
         self, dset,
         llm_prompts: List[Tuple[str, str]]
     ) -> Dict[str, List[str]]:
-
+        '''
+        THIS IS DEPRECATED BUT I'M SCARED / TOO ATTACHED/SENTIMENTAL TO DELETE IT JUST YET.
+        I'm sorry Mark I am not yet fully ruthless in my deleting old code.
+        But officially, llm_prompts is dead. Long live llm_prompts. Attributer is in. 
+        '''
         attrs_by_class = dict({classname: [] for classname in dset.classnames})
         for prompt_nickname, llm_prompt in llm_prompts:
             # Two cases that do not need the LLM: classname only (no attr info) or GT attrs
@@ -47,13 +51,6 @@ class LLM(ABC):
                 be used for a dataset ({dset.get_dsetname()}) that is not attributed."
                 for classname in attrs_by_class:
                     attrs_by_class[classname].extend(dset.gt_attrs_by_class(classname))
-
-            # elif prompt_nickname == 'dollarstreet_cheat':
-            #     for classname in attrs_by_class:
-            #         attrs_by_class[classname].extend([
-            #             ''
-            #         ])
-
             # Otherwise, we ask the LLM for attributes.
             else:    
                 # We cache LLM responses to avoid asking the LLM the same question
