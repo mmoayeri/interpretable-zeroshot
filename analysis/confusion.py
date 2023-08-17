@@ -8,7 +8,11 @@ from models.vlm import CLIP
 from models.llm import Vicuna
 from main import load_dataset
 from models.predictor import AverageVecs
-from analysis_utils import confusion_matrix_computation, return_df_of_avg, return_df_C_by_CK
+from analysis_utils import (
+    confusion_matrix_computation,
+    return_df_of_avg,
+    return_df_C_by_CK,
+)
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -58,33 +62,39 @@ def main(args):
         raise ValueError(
             f"LLM {args.llm} not recognized. Is it implemented? Should be in in ./models/llm.py"
         )
-    # STEP 1: confusion matrix of vanilla model 
-    # attrs_by_class = llm.infer_attrs(dset, [("classname", None)])
-    # subpops_by_class = dset.subpop_descriptions_from_attrs(attrs_by_class)
-    # text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(
-    #     subpops_by_class, ["a photo of a {}."]
-    # )
+    # STEP 1: confusion matrix of vanilla model
+    attrs_by_class = llm.infer_attrs(dset, [("classname", None)])
+    subpops_by_class = dset.subpop_descriptions_from_attrs(attrs_by_class)
+    text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(
+        subpops_by_class, ["a photo of a {}."]
+    )
 
-    # predictor = AverageVecs()
-    # predictions, _ = predictor.predict(
-    #     image_embeddings, text_embeddings_by_cls, dset.classnames
-    # )
+    predictor = AverageVecs()
+    predictions, _ = predictor.predict(
+        image_embeddings, text_embeddings_by_cls, dset.classnames
+    )
 
-    # confusion_mat = confusion_matrix_computation(dset, predictions, identifiers)
+    confusion_mat = confusion_matrix_computation(dset, predictions, identifiers)
     # top_mistakes = confusion_mat.stack().nlargest(20)
     # for row in top_mistakes.index:
     #     cl1,cl2 = row
     #     print(f"{cl1} VS {cl2}")
-    
+
     # STEP 2: study subpopulations text vectors
     for llm_answers in [
-        [(
-            "kinds_regions_incomes",
-            "List 16 ways in which a {} appear differently across diverse incomes and geographic regions. Use up to three words per list item.",
-        )],
-    ]:   
+        [
+            (
+                "kinds_regions_incomes",
+                "List 16 ways in which a {} appear differently across diverse incomes and geographic regions. Use up to three words per list item.",
+            )
+        ],
+    ]:
         mat = return_df_C_by_CK(dset, llm, vlm, llm_answers, args.vlm_prompts)
-        import pdb; pdb.set_trace()
+        average_over_subpops = mat.droplevel(level=0).groupby(level=0, axis=1).mean()
+        for cls in average_over_subpops.index:
+            average_over_subpops.loc[cls][cls] = 0.0  # set to 0 the same to same class
+        class_averages = average_over_subpops.mean(axis=1)
+
 
 if __name__ == "__main__":
     args = main_arguments(sys.argv[1:])
