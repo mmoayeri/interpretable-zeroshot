@@ -221,7 +221,10 @@ class BLIP2(VLM):
         return self.vis_processors
 
     def get_modelname(self) -> str:
-        return f"BLIP-2-{self.frozen_text_encode}"
+        return f"BLIP-2-{self.frozen_text_encoder}"
+
+    def __repr__(self) -> str:
+        return self.get_modelname()
 
     def get_batchsize(self) -> int:
         return 64
@@ -239,13 +242,13 @@ class InstructBLIP(VLM):
         - `generate_image_conditioned_text` method
 
     Args:
-        frozen_text_encoder: vicuna-7b or vicuna-13b
+        frozen_text_encoder: vicuna7b or vicuna13b
         device: cuda or cpu (for running locally when GPU memory is insufficient)
     """
 
-    def __init__(self, frozen_text_encoder: str = "vicuna-7b", device: str = "cuda"):
+    def __init__(self, frozen_text_encoder: str = "vicuna7b", device: str = "cuda"):
         self.frozen_text_encoder = frozen_text_encoder
-        if frozen_text_encoder != "vicuna-7b":
+        if frozen_text_encoder != "vicuna7b":
             raise ValueError(f"{frozen_text_encoder} not supported")
         self.device = device
 
@@ -320,7 +323,10 @@ class InstructBLIP(VLM):
         return text_embedding
 
     def get_modelname(self) -> str:
-        return "clip__" + self.model_key.replace("/", "_")
+        return f"InstructBLIP-{self.frozen_text_encoder}"
+
+    def __repr__(self) -> str:
+        return self.get_modelname()
 
     def get_batchsize(self) -> int:
         return self.batch_size

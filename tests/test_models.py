@@ -14,9 +14,13 @@ class TestBLIPModels:
     )
     DEVICE = "cpu"
 
-    @pytest.mark.parametrize("model", [BLIP2(DEVICE)]
+    @pytest.mark.parametrize(
+        "model", [BLIP2(device=DEVICE), InstructBLIP(device=DEVICE)]
+    )
     def test_image_feature_extraction(self, model):
-        image = model.vis_processors["eval"](self.RAW_IMAGE).unsqueeze(0).to(device)
+        image = (
+            model.vis_processors["eval"](self.RAW_IMAGE).unsqueeze(0).to(self.DEVICE)
+        )
 
         image_features = model.encode_image_batch(image)
         assert image_features.shape == (1, 32, 768)
