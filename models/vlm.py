@@ -229,9 +229,9 @@ class InstructBLIP(VLM):
         device: cuda or cpu (for running locally when GPU memory is insufficient)
     """
 
-    def __init__(self, frozen_text_encoder: str = "vicuna7b", device: str = "cuda"):
+    def __init__(self, frozen_text_encoder: str = "vicuna13b", device: str = "cuda"):
         self.frozen_text_encoder = frozen_text_encoder
-        if frozen_text_encoder != "vicuna7b":
+        if frozen_text_encoder not in {"vicuna7b", "vicuna13b"}:
             raise ValueError(f"{frozen_text_encoder} not supported")
         self.device = device
 
