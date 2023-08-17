@@ -13,44 +13,6 @@ def compute_avg_cls_embeddings(text_embeddings_dict):
     return avg_cls_embeddings
 
 
-def return_df_of_cosine(dset, llm, vlm, llm_answers, vlm_prompts):
-
-    attrs_by_class = llm.infer_attrs(dset, llm_answers)
-    subpops_by_class = dset.subpop_descriptions_from_attrs(attrs_by_class)
-
-    text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(
-        subpops_by_class, vlm_prompts
-    )
-    cossim = torch.nn.CosineSimilarity(dim=2)
-    mat = dict()
-
-    for cls1 in dset.classnames:
-        mat[cls1] = dict()
-        for cls2 in dset.classnames:
-            mat[cls1][cls2] = dict()
-    class_indices = range(len(dset.classnames))
-    for c1 in class_indices:
-        cls1 = dset.classnames[c1]
-        subpops_cl1 = text_embeddings_by_cls[cls1]
-        subpops_names_cl1 = subpops_by_class[cls1]
-
-        for c2 in class_indices:
-            cls2 = dset.classnames[c2]
-            subpops_cl2 = text_embeddings_by_cls[cls2]
-            subpops_names_cl2 = subpops_by_class[cls2]
-            if c2 >= c1:
-                s = cossim(subpops_cl1.unsqueeze(1), subpops_cl2.unsqueeze(0))
-                mat[cls1][cls2] = pd.DataFrame(
-                    s.cpu(), index=subpops_names_cl1, columns=subpops_names_cl2
-                )
-                mat[cls2][cls1] = pd.DataFrame(
-                    s.transpose(1, 0).cpu(),
-                    index=subpops_names_cl2,
-                    columns=subpops_names_cl1,
-                )
-    return mat
-
-
 def return_df_C_by_CK(dset, llm, vlm, llm_answers, vlm_prompts):
 
     vanilla_attrs_by_class = llm.infer_attrs(dset, [("classname", None)])
