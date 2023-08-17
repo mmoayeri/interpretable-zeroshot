@@ -13,10 +13,10 @@ class TestBLIPModels:
         "RGB"
     )
     DEVICE = "cpu"
+    blip2 = BLIP2(device=DEVICE)
+    instruct_blip = InstructBLIP(device=DEVICE)
 
-    @pytest.mark.parametrize(
-        "model", [BLIP2(device=DEVICE), InstructBLIP(device=DEVICE)]
-    )
+    @pytest.mark.parametrize("model", [blip2, instruct_blip])
     def test_image_feature_extraction(self, model):
         image = (
             model.vis_processors["eval"](self.RAW_IMAGE).unsqueeze(0).to(self.DEVICE)
@@ -25,18 +25,17 @@ class TestBLIPModels:
         image_features = model.encode_image_batch(image)
         assert image_features.shape == (1, 32, 768)
 
-    def test_blip2_text_feature_extraction(self):
-        device = "cpu"
-        blip2 = BLIP2(device=device)
-
-        text_features = blip2.encode_texts(["a dog"], ["what is "])
+    @pytest.mark.parametrize("model", [blip2, instruct_blip])
+    def test_text_feature_extraction(self, model):
+        text_features = model.encode_texts(["a dog"], ["what is "])
 
         assert text_features.shape == (1, 4, 768)
 
     def test_blip2_projected_feature_extraction(self):
-        device = "cpu"
-        blip2 = BLIP2(device=device)
-        image = blip2.vis_processors["eval"](self.RAW_IMAGE).unsqueeze(0).to(device)
+        blip2 = self.blip2
+        image = (
+            blip2.vis_processors["eval"](self.RAW_IMAGE).unsqueeze(0).to(self.DEVICE)
+        )
 
         image_features = blip2.encode_image_batch(image, project_embeddings=True)
         assert image_features.shape == (1, 32, 256)

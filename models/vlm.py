@@ -49,6 +49,15 @@ class VLM(ABC):
         # tensors as desired by vlm.image_encoder
         raise NotImplementedError
 
+    def build_text_inputs(
+        self, texts: List[str], vlm_prompt_templates: List[str]
+    ) -> List[str]:
+        """Combines texts and vlm_prompt_templates into list of string inputs"""
+        text_inputs = []
+        for vlm_prompt in vlm_prompt_templates:
+            text_inputs.extend([vlm_prompt.format(text) for text in texts])
+        return text_inputs
+
     def embed_all_images(self, dset) -> Tuple[Tensor, List[str]]:
         cache_path = os.path.join(
             _CACHED_DATA_ROOT,
@@ -162,7 +171,7 @@ class BLIP2(VLM):
         (
             self.model,
             self.vis_processors,
-            self.txt_processors,
+            self.text_processors,
         ) = load_model_and_preprocess(
             name="blip2_feature_extractor",
             model_type="pretrain",
@@ -185,14 +194,6 @@ class BLIP2(VLM):
                 ).image_embeds
         return image_embeddings
 
-    def build_text_inputs(
-        self, texts: List[str], vlm_prompt_templates: List[str]
-    ) -> List[str]:
-        text_inputs = []
-        for vlm_prompt in vlm_prompt_templates:
-            text_inputs.extend([vlm_prompt.format(text) for text in texts])
-        return text_inputs
-
     def encode_texts(
         self,
         texts: List[str],
@@ -204,7 +205,7 @@ class BLIP2(VLM):
         with torch.no_grad():
             processed_text_inputs = []
             for text_input in text_inputs:
-                processed_text_input = self.txt_processors["eval"](text_input)
+                processed_text_input = self.text_processors["eval"](text_input)
                 processed_text_inputs.append(processed_text_input)
 
             if project_embeddings:
@@ -300,9 +301,19 @@ class InstructBLIP(VLM):
         return image_embeds
 
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
-        raise NotImplemented
+        text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
+        with torch.no_grad():
+            processed_text_inputs = []
+            for text_input in text_inputs:
+                processed_text_input = self.text_processors["eval"](text_input)
+                processed_text_inputs.append(processed_text_input)
 
-    def encode_text(self, text: str) -> Tensor:
+                text_embeddings = self.extract_text_features(
+                    {"text_input": processed_text_inputs}, mode="text"
+                ).text_embeds
+        return text_embeddings
+
+    def extract_text_features(self, text: str) -> Tensor:
         """Returns an embedding for the given string.
         Implementation is based on feature extraction from
         https://github.com/salesforce/LAVIS/blob/f982acc73288408bceda2d35471a8fcf55aa04ca/lavis/models/blip2_models/blip2_qformer.py#L387
