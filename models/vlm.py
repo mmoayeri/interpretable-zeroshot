@@ -321,7 +321,7 @@ class InstructBLIP(VLM):
         return self.get_modelname()
 
     def get_batchsize(self) -> int:
-        return self.batch_size
+        return 64
 
     def get_image_transform(self):
         return self.transform
