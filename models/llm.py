@@ -32,7 +32,11 @@ class LLM(ABC):
         self, dset,
         llm_prompts: List[Tuple[str, str]]
     ) -> Dict[str, List[str]]:
-
+        '''
+        THIS IS DEPRECATED BUT I'M SCARED / TOO ATTACHED/SENTIMENTAL TO DELETE IT JUST YET.
+        I'm sorry Mark I am not yet fully ruthless in my deleting old code.
+        But officially, llm_prompts is dead. Long live llm_prompts. Attributer is in. 
+        '''
         attrs_by_class = dict({classname: [] for classname in dset.classnames})
         for prompt_nickname, llm_prompt in llm_prompts:
             # Two cases that do not need the LLM: classname only (no attr info) or GT attrs
@@ -47,7 +51,6 @@ class LLM(ABC):
                 be used for a dataset ({dset.get_dsetname()}) that is not attributed."
                 for classname in attrs_by_class:
                     attrs_by_class[classname].extend(dset.gt_attrs_by_class(classname))
-
             # Otherwise, we ask the LLM for attributes.
             else:    
                 # We cache LLM responses to avoid asking the LLM the same question
@@ -123,6 +126,7 @@ class Vicuna(LLM):
         individual_answers = answer.split('\n')
         # remove leading numbers like '1. '
         # sometimes there is a period at the end of a response, we remove that as well
-        cleaned_answers = [ans.split('. ')[-1].strip().replace('.', '') for ans in individual_answers]
+        # sometimes the llm says {axes of variance}: {instances} (e.g. Appearance: decorative); we just want the later part
+        cleaned_answers = [ans.split('. ')[-1].split(':')[-1].strip().replace('.', '') for ans in individual_answers]
         return cleaned_answers
 

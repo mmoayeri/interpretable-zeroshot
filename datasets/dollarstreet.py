@@ -87,3 +87,13 @@ class DollarstreetDataset(ClassificationDset):
         self.attrs_by_class = attrs_by_class
         print(f'Updated dset.attrs_by_class dictionary for attribute {attr_col}')
 
+    def caption_gt_subpop(self, classname: str, attr: str) -> str:
+        if self.attr_col == 'region':
+            caption = f'{classname} from the region {attr}'
+        elif self.attr_col == 'income_level':
+            caption = f'{classname} from a {attr} country'
+        elif self.attr_col == 'country.name':
+            caption = f'{classname} from the country {attr}'
+        else:
+            raise ValueError(f'Invalid attr_col {self.attr_col}. Must be one of {", ".join(self.allowed_attr_cols)}.')    
+        return caption

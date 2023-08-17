@@ -77,3 +77,12 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: 
     })
 
     return metrics_dict
+
+def dollarstreet_worst_subpop_accs_all_attrs(pred_classnames, identifiers, dset):
+    wsa_by_attr = dict()
+    for i, attr in enumerate(['region', 'country.name', 'income_group']):
+        dset.set_attribute_column(attr)
+        metrics_dict = accuracy_metrics(pred_classnames, identifiers, dset)
+        wsa_by_attr[attr] = dict({'acc': metrics_dict['average worst subpop accuracy'],
+                                  'std': metrics_dict['std dev worst subpop accuracy']})
+    return wsa_by_attr

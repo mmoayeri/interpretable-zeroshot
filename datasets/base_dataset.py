@@ -82,26 +82,8 @@ class ClassificationDset(ABC, Dataset):
         # if the dataset has ground truth attribute labels
         pass
 
-    # TODO: move this guy to his own class; should be separate as this pertains to
-    #       VLM prompting, and also may be affected by attribute category
-    def subpop_descriptions_from_attrs(
-        self,
-        attrs_by_class: Dict[str, List[str]]
-    ) -> Dict[str, List[str]]:
-
-        subpop_descriptions_by_cls = dict()
-        for classname, attrs in attrs_by_class.items():
-            subpop_descriptions_by_cls[classname] = []
-            for attr in attrs:
-                if attr is None:
-                    # This is for our Vanilla case, where we just pass the classname
-                    subpop_descriptions_by_cls[classname].append(classname)
-                else:
-                    # TODO: think about this more
-                    # other options include {classname} that is/has {attr} (like Vondrick)
-                    # or perhaps something that is prompt specific: e.g. {attr}, a kind of {classname}
-                    # subpop_descriptions_by_cls[classname].append(f'{attr} {classname}')
-                    # subpop_descriptions_by_cls[classname].append(f'{attr}, a kind of {classname}')
-                    # subpop_descriptions_by_cls[classname].append(f'{classname}: from {attr}') # like in waffleclip
-                    subpop_descriptions_by_cls[classname].append(f'{classname} from a {attr} country') # like in waffleclip
-        return subpop_descriptions_by_cls
+    def caption_gt_subpop(self, classname: str, attr: str) -> str:
+        if dset.has_gt_attrs:
+            raise NotImplementedError
+        else:
+            raise Exception(f'Dataset {self.dsetname} does not have ground truth attributes.') 

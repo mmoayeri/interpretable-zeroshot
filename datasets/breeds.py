@@ -89,3 +89,6 @@ class Breeds(ClassificationDset):
         data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, attrs)), 
                                     columns=['img_path', 'valid_classnames', 'attr'])
         self.data_df = data_df.set_index('img_path')
+
+    def caption_gt_subpop(self, classname: str, attr: str) -> str:
+        return f'{attr}, a kind of {classname}'
