@@ -275,9 +275,6 @@ class InstructBLIP(VLM):
         return generated_text
 
     def encode_image_batch(self, images: Tensor) -> Tensor:
-        raise NotImplemented
-
-    def _encode_image(self, images: Tensor) -> Tensor:
         """Based on feature_extraction from BLIP2.
         https://github.com/salesforce/LAVIS/blob/f982acc73288408bceda2d35471a8fcf55aa04ca/lavis/models/blip2_models/blip2_qformer.py#L387
         """
@@ -301,6 +298,26 @@ class InstructBLIP(VLM):
 
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
         raise NotImplemented
+
+    def encode_text(self, text: str) -> Tensor:
+        """Returns an embedding for the given string.
+        Implementation is based on feature extraction from
+        https://github.com/salesforce/LAVIS/blob/f982acc73288408bceda2d35471a8fcf55aa04ca/lavis/models/blip2_models/blip2_qformer.py#L387
+        """
+        text_tokens = self.model.tokenizer(
+            text,
+            padding="max_length",
+            truncation=True,
+            max_length=self.model.max_txt_len,
+            return_tensors="pt",
+        ).to(self.device)
+        text_output = self.model.Qformer.bert(
+            text_tokens.input_ids,
+            attention_mask=text_tokens.attention_mask,
+            return_dict=True,
+        )
+        text_embedding = text_output.last_hidden_state
+        return text_embedding
 
     def get_modelname(self) -> str:
         return "clip__" + self.model_key.replace("/", "_")
