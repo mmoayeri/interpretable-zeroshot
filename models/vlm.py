@@ -303,14 +303,13 @@ class InstructBLIP(VLM):
     def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
         text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
         with torch.no_grad():
-            processed_text_inputs = []
+            text_embeddings_list = []
             for text_input in text_inputs:
-                processed_text_input = self.text_processors["eval"](text_input)
-                processed_text_inputs.append(processed_text_input)
-
-                text_embeddings = self.extract_text_features(
-                    {"text_input": processed_text_inputs}, mode="text"
-                ).text_embeds
+                text_embedding = self.extract_text_features(text_input)
+                text_embeddings_list.append(text_embedding)
+        text_embeddings = torch.stack(text_embeddings_list, dim=0)
+        # remove dimension 1 -> (batch size, ?, 768)
+        text_embeddings = text_embeddings.squeeze(1)
         return text_embeddings
 
     def extract_text_features(self, text: str) -> Tensor:
