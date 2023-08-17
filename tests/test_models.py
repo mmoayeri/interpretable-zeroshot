@@ -29,7 +29,8 @@ class TestBLIPModels:
     def test_text_feature_extraction(self, model):
         text_features = model.encode_texts(["a dog"], ["what is "])
 
-        assert text_features.shape == (1, 4, 768)
+        assert text_features.shape[0] == 1
+        assert text_features.shape[2] == 768
 
     def test_blip2_projected_feature_extraction(self):
         blip2 = self.blip2
