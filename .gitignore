@@ -1,4 +1,10 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
+<<<<<<< HEAD
+
+
+playground.ipynb
+=======
 plots/
 mazda_analysis/
+>>>>>>> 1a85a44866b9ff16ee58abf998074d80099e5d6c
