@@ -76,7 +76,7 @@ class VLM(ABC):
                     batch_embeddings = self.encode_image_batch(imgs)  # .flatten(1)
                     image_embeddings.extend(
                         batch_embeddings
-                    )  # .detach().cpu().numpy())
+                    )
             image_embeddings = torch.vstack(image_embeddings)
 
             data_to_cache = dict(
@@ -143,7 +143,8 @@ class BLIP2(VLM):
     """
 
     def __init__(
-        self, frozen_text_encoder: str = "bert-base-uncased", device: str = "cuda"
+        self, frozen_text_encoder: str = "bert-base-uncased", device: str = "cuda",
+        batch_size: int = 32
     ):
         self.frozen_text_encoder = frozen_text_encoder
         if frozen_text_encoder != "bert-base-uncased":
@@ -160,12 +161,14 @@ class BLIP2(VLM):
             is_eval=True,
             device=device,
         )
+        self.batch_size = batch_size
 
     def encode_image_batch(
         self, imgs: Tensor, project_embeddings: bool = False
     ) -> Tensor:
         """project_embeddings extracts embeddings post-projections which is often used in zero shot"""
         with torch.no_grad():
+            imgs = imgs.to(self.device)
             if project_embeddings:
                 image_embeddings = self.model.extract_features(
                     {"image": imgs}, mode="image"
@@ -174,16 +177,16 @@ class BLIP2(VLM):
                 image_embeddings = self.model.extract_features(
                     {"image": imgs}, mode="image"
                 ).image_embeds
-        return image_embeddings
+        # BLIP returns a sequence of embeddings per img; we avg over sequence dim to get a single vec per img
+        return image_embeddings.mean(1)
 
     def encode_texts(
         self,
-        texts: List[str],
-        vlm_prompt_templates: List[str],
+        text_inputs: List[str],
+        # vlm_prompt_templates: List[str],
         project_embeddings: bool = False,
     ) -> Tensor:
         """project_embeddings extracts embeddings post-projections which is often used in zero shot"""
-        text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
         with torch.no_grad():
             processed_text_inputs = []
             for text_input in text_inputs:
@@ -198,10 +201,11 @@ class BLIP2(VLM):
                 text_embeddings = self.model.extract_features(
                     {"text_input": processed_text_inputs}, mode="text"
                 ).text_embeds
-        return text_embeddings
+        # Also returns a sequence of embeddings per text; we avg over sequence dim to get a single vec per text
+        return text_embeddings.mean(1)
 
     def get_image_transform(self):
-        return self.vis_processors
+        return self.vis_processors['eval']
 
     def get_modelname(self) -> str:
         return f"BLIP-2-{self.frozen_text_encoder}"
@@ -245,6 +249,7 @@ class InstructBLIP(VLM):
             is_eval=True,
             device=device,
         )
+        self.batch_size = 32
 
     def generate_image_conditioned_text(
         self,
@@ -264,7 +269,8 @@ class InstructBLIP(VLM):
         """Based on feature_extraction from BLIP2.
         https://github.com/salesforce/LAVIS/blob/f982acc73288408bceda2d35471a8fcf55aa04ca/lavis/models/blip2_models/blip2_qformer.py#L387
         """
-        image_embeds_frozen = self.model.ln_vision(self.model.visual_encoder(images))
+        with self.model.maybe_autocast(): 
+            image_embeds_frozen = self.model.ln_vision(self.model.visual_encoder(images.to(self.device)))
         image_embeds_frozen = image_embeds_frozen.float()
         image_atts = torch.ones(image_embeds_frozen.size()[:-1], dtype=torch.long).to(
             self.device
@@ -272,7 +278,6 @@ class InstructBLIP(VLM):
         query_tokens = self.model.query_tokens.expand(
             image_embeds_frozen.shape[0], -1, -1
         )
-
         query_output = self.model.Qformer.bert(
             query_embeds=query_tokens,
             encoder_hidden_states=image_embeds_frozen,
@@ -282,8 +287,7 @@ class InstructBLIP(VLM):
         image_embeds = query_output.last_hidden_state
         return image_embeds
 
-    def encode_texts(self, texts: List[str], vlm_prompt_templates: List[str]) -> Tensor:
-        text_inputs = self.build_text_inputs(texts, vlm_prompt_templates)
+    def encode_texts(self, text_inputs: List[str]) -> Tensor:
         with torch.no_grad():
             text_embeddings_list = []
             for text_input in text_inputs:
@@ -324,4 +328,4 @@ class InstructBLIP(VLM):
         return 64
 
     def get_image_transform(self):
-        return self.transform
+        return self.vis_processors['eval']

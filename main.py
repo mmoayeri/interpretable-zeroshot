@@ -1,6 +1,6 @@
 # import argparse
 from datasets import Breeds, DollarstreetDataset
-from models.vlm import CLIP
+from models.vlm import CLIP, InstructBLIP, BLIP2
 from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
 from models.attributer import init_attributer, infer_attrs
@@ -24,6 +24,10 @@ def main(args):
     if 'clip' in args.vlm:
         model_key = args.vlm.split('clip_')[-1]
         vlm = CLIP(model_key=model_key)
+    elif 'instruct_blip' in args.vlm:
+        vlm = InstructBLIP()
+    elif args.vlm == 'blip2':
+        vlm = BLIP2()
     else:
         raise ValueError(f'VLM {args.vlm} not recognized. Is it implemented? Should be in in ./models/vlm.py')
     # 2. Get image embeddings
@@ -86,15 +90,15 @@ class Config(object):
 def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
-        'dsetname': 'dollarstreet__income_group',
+        'dsetname': 'dollarstreet__country.name',
         # 'dsetname': 'living17',
-        'vlm': 'clip_ViT-B/16',
+        'vlm': 'blip2',#'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.5',
         # 'llm_prompts': [('classname', None)],
-        'attributer_keys': ['vanilla', 'income_level', 'country', 'region'], #'income_level'],
-        'vlm_prompt_dim_handler': 'average_and_norm_then_stack',
+        'attributer_keys': ['vanilla'],# 'income_level', 'country', 'region'], #'income_level'],
+        'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
         'vlm_prompts': ['a photo of a {}.'],
-        'predictor': 'average_top_2',
+        'predictor': 'interpol_sims_top_2',
         'lamb': 0.5
     })
 

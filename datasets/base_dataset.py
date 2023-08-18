@@ -42,11 +42,12 @@ class ClassificationDset(ABC, Dataset):
         img_path = self.static_img_path_list[ind]
         img = Image.open(img_path)
 
+        img_shape = np.array(img).shape
+        if len(img_shape) != 3 or img_shape[2] != 3:
+            img = img.convert("RGB")
+
         if self.transform:
             img = self.transform(img)
-
-        if img.shape[0] == 1:
-            img = torch.cat([img]*3, axis=0)
 
         return img, img_path
     

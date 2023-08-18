@@ -75,7 +75,6 @@ class StackAll(VLMPromptDimHandler):
         embeddings_for_cls = []
         for subpop, embeddings_for_subpop in embeddings_by_subpop.items():
             embeddings_for_cls.append(embeddings_for_subpop)
-            # embeddings_for_cls = torch.vstack((embeddings_for_cls, embeddings_for_subpop))
         return torch.vstack(embeddings_for_cls)
 
 ### Our predictors, where we consolidate to final class logits
@@ -85,21 +84,20 @@ class Predictor(ABC):
     def compute_logits(
         self,
         image_embeddings: Tensor,
-        text_embeddings_by_cls: Dict[str, Tensor] 
+        text_embeddings_by_cls: Dict[str, Tensor],
+        classnames: List[str] 
     ) -> Tensor:
         raise NotImplementedError
 
     def predict(
         self, 
         image_embeddings: Tensor,
-        # text_embeddings_by_cls: Dict[str, Tensor],
         text_embeddings_by_subpop_by_cls: Dict[str, Dict[str, Tensor]],
         classnames: List[str],
         vlm_dim_handling: VLMPromptDimHandler
     ) -> Tuple[List[str], Tensor]:
-        # given image embeddings and dict of text embeddings for each class, 
+        # given image embeddings and dict of text embeddings by subpop for each class, 
         # return predicted classnames and confidences
-        # logits = self.compute_logits(image_embeddings, text_embeddings_by_cls, classnames)
         text_embeddings_by_cls = vlm_dim_handling.convert_to_embeddings_by_cls(text_embeddings_by_subpop_by_cls)
         logits = self.compute_logits(image_embeddings, text_embeddings_by_cls, classnames)
         probs = torch.nn.functional.softmax(logits, dim=1)
