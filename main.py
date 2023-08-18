@@ -1,5 +1,5 @@
 # import argparse
-from datasets import Breeds, DollarstreetDataset
+from datasets import Breeds, DollarstreetDataset, GeodeDataset
 from models.vlm import CLIP, InstructBLIP, BLIP2
 from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
@@ -14,6 +14,9 @@ def main(args):
     elif 'dollarstreet' in args.dsetname:
         attr = args.dsetname.split('__')[-1]
         dset = DollarstreetDataset(attr_col = attr)
+    elif 'geode' in args.dsetname:
+        attr = args.dsetname.split('__')[-1]
+        dset = GeodeDataset(attr_col = attr)
     elif args.dsetname == 'mit_states':
         dset = MITStates()
     else:
@@ -90,12 +93,13 @@ class Config(object):
 def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
-        'dsetname': 'dollarstreet__country.name',
+        # 'dsetname': 'dollarstreet__country.name',
+        'dsetname': 'geode__country',
         # 'dsetname': 'living17',
         'vlm': 'blip2',#'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.5',
         # 'llm_prompts': [('classname', None)],
-        'attributer_keys': ['vanilla'],# 'income_level', 'country', 'region'], #'income_level'],
+        'attributer_keys': ['vanilla', 'income_level'],# 'country', 'region'], #'income_level'],
         'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
         'vlm_prompts': ['a photo of a {}.'],
         'predictor': 'interpol_sims_top_2',
