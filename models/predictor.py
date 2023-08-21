@@ -116,6 +116,7 @@ class CHiLS(Predictor):
         classnames: List[str],
         vlm_dim_handling: VLMPromptDimHandler# = AverageAndNormThenStack()
     ) -> Tuple[List[str], Tensor]:
+        assert type(vlm_dim_handling) is AverageAndNormThenStack, "Must use average_and_norm_then_stack as vlm_prompt_dim_handler when predictor is CHiLS."
         # First let's take out the classname only subpops
         # Note that the classname by itself needs to be among the subpops (i.e. must also use vanilla attributer)
         assert sum([(classname not in text_embeddings_by_subpop_by_cls[classname]) for classname in classnames]) == 0, \

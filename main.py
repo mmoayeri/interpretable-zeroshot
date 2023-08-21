@@ -120,7 +120,7 @@ def test_run_full_pipeline():
     # args_as_dict['predictor'] = 'average_top_6'
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
-    args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
+    # args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
     # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
 
     args = Config(args_as_dict)
