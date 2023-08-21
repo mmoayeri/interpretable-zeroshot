@@ -3,8 +3,9 @@ from typing import Dict, List
 from models.llm import LLM
 import os
 from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES, _CONDENSED_OPENAI_TEMPLATES
-from my_utils import load_cached_data
+from my_utils import load_cached_data, cache_data
 from datasets import ClassificationDset
+from tqdm import tqdm
 
 class Attributer(ABC):
     '''
@@ -276,7 +277,7 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
     # Baseline attributers
     if key == 'vanilla':
         attributer = ClassnameOnly()
-    elif key == 'ground_truth':
+    elif key == 'groundtruth':
         attributer = GroundTruths(dset)
     # 'Global info' (i.e. class-agnostic) level attributers
     elif key == 'region':

@@ -1,5 +1,5 @@
 # import argparse
-from datasets import Breeds, DollarstreetDataset, GeodeDataset
+from datasets import Breeds, DollarstreetDataset, GeodeDataset, MITStates
 from models.vlm import CLIP, InstructBLIP, BLIP2
 from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
@@ -17,8 +17,9 @@ def main(args):
     elif 'geode' in args.dsetname:
         attr = args.dsetname.split('__')[-1]
         dset = GeodeDataset(attr_col = attr)
-    elif args.dsetname == 'mit_states':
-        dset = MITStates()
+    elif 'mit_states' in args.dsetname:
+        thresh = float(args.dsetname.split('mit_states_')[-1])
+        dset = MITStates(filter_classes_thresh=thresh)
     else:
         raise ValueError(f'Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory.')
 
@@ -94,12 +95,13 @@ def test_run_full_pipeline():
     # These args will be a pure vanilla case
     args_as_dict = dict({
         # 'dsetname': 'dollarstreet__country.name',
-        'dsetname': 'geode__country',
+        # 'dsetname': 'geode__country',
+        'dsetname': 'mit_states_0.8',
         # 'dsetname': 'living17',
         'vlm': 'blip2',#'clip_ViT-B/16',
+        # 'vlm': 'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.5',
-        # 'llm_prompts': [('classname', None)],
-        'attributer_keys': ['vanilla', 'income_level'],# 'country', 'region'], #'income_level'],
+        'attributer_keys': ['vanilla', 'llm_kinds', 'income_level'],# 'country', 'region'], #'income_level'],
         'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
         'vlm_prompts': ['a photo of a {}.'],
         'predictor': 'interpol_sims_top_2',
@@ -114,7 +116,7 @@ def test_run_full_pipeline():
 
     ### And to play with prediction consolidation strategy, you can do one of these
     # args_as_dict['predictor'] = 'max_of_max'
-    # args_as_dict['predictor'] = 'average_top_6'
+    args_as_dict['predictor'] = 'average_top_6'
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
     args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']

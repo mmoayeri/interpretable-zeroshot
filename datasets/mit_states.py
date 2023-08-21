@@ -6,27 +6,39 @@ from torchvision import transforms
 import pandas as pd
 import glob
 import os
-from my_utils import load_cached_results
+from datasets import ClassificationDset
+from my_utils import load_cached_data
 
 standard_transform = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()])
 
-class MITStates(Dataset):
+class MITStates(ClassificationDset):
     """
     MIT States Dataset. It consists of a image sets corresponding to (noun, adj) pairs, where
     adjectives contextualize the noun to various diverse states (e.g. sliced tomato vs. pureed tomato)
     """
+    has_gt_attrs = True
 
-    def __init__(self, data_dir='/private/home/mazda/data/mit_states', 
-                transform=standard_transform, min_cnt_in_group=10, filter_classes=True):
-        self.min_cnt_in_group = min_cnt_in_group
+    # def __init__(self, data_dir='/private/home/mazda/data/mit_states', 
+    def __init__(
+            self, 
+            data_dir: str='/checkpoint/mazda/data/mit_states', 
+            filter_classes_thresh: float=0.9,
+            transform=standard_transform
+        ):
+        """
+        filter_classes_thresh is the max CLIP cos-sim allowed bw two classnames. We perform this filtering
+        step since MIT States was not originally designed as a classification dataset.
+        """
+        self.data_dir = data_dir
+        self.dsetname = f'mit_states_thresh_{filter_classes_thresh}'
 
-        if filter_classes:
-            assert os.path.exists('results/mit_states_problem_classes.pkl'), 'Make sure to run record_mit_states_problem_classes in analyze_mit_states.py first'
-            self.disallowed_classes = load_cached_results('mit_states_problem_classes')
+        if filter_classes_thresh < 1:
+            disallowed_classes_path = f'{self.data_dir}/problem_classes/thresh_{filter_classes_thresh}.pkl'
+            assert os.path.exists(disallowed_classes_path), 'Make sure to run record_mit_states_problem_classes with same filter_classes_thresh in my_utils first'
+            self.disallowed_classes = load_cached_data(disallowed_classes_path)
         else:
             self.disallowed_classes = []
 
-        self.data_dir = data_dir
         self.transform = transform
         adjs_per_noun = self.collect_instances()
         self.classnames = list(adjs_per_noun.keys())
@@ -59,7 +71,7 @@ class MITStates(Dataset):
                 adjs_per_noun[noun] = []
             adjs_per_noun[noun].append(adj)
         
-        self.data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, attrs)), 
+        data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, attrs)), 
                                     columns=['img_path', 'valid_classnames', 'attr'])
         self.data_df = data_df.set_index('img_path')
 

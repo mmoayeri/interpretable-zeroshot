@@ -2,3 +2,4 @@ from .base_dataset import ClassificationDset
 from .breeds import Breeds
 from .dollarstreet import DollarstreetDataset
 from .geode import GeodeDataset
+from .mit_states import MITStates
