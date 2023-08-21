@@ -22,19 +22,19 @@ class MITStates(ClassificationDset):
     def __init__(
             self, 
             data_dir: str='/checkpoint/mazda/data/mit_states', 
-            filter_classes_thresh: float=0.9,
+            max_allowable_sim_of_classnames: float=0.9,
             transform=standard_transform
         ):
         """
-        filter_classes_thresh is the max CLIP cos-sim allowed bw two classnames. We perform this filtering
+        max_allowable_sim_of_classnames is the max CLIP cos-sim allowed bw two classnames. We perform this filtering
         step since MIT States was not originally designed as a classification dataset.
         """
         self.data_dir = data_dir
-        self.dsetname = f'mit_states_thresh_{filter_classes_thresh}'
+        self.dsetname = f'mit_states_thresh_{max_allowable_sim_of_classnames}'
 
-        if filter_classes_thresh < 1:
-            disallowed_classes_path = f'{self.data_dir}/problem_classes/thresh_{filter_classes_thresh}.pkl'
-            assert os.path.exists(disallowed_classes_path), 'Make sure to run record_mit_states_problem_classes with same filter_classes_thresh in my_utils first'
+        if max_allowable_sim_of_classnames < 1:
+            disallowed_classes_path = f'{self.data_dir}/problem_classes/thresh_{max_allowable_sim_of_classnames}.pkl'
+            assert os.path.exists(disallowed_classes_path), 'Make sure to run record_mit_states_problem_classes with same max_allowable_sim_of_classnames in my_utils first'
             self.disallowed_classes = load_cached_data(disallowed_classes_path)
         else:
             self.disallowed_classes = []

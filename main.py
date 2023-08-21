@@ -19,7 +19,7 @@ def main(args):
         dset = GeodeDataset(attr_col = attr)
     elif 'mit_states' in args.dsetname:
         thresh = float(args.dsetname.split('mit_states_')[-1])
-        dset = MITStates(filter_classes_thresh=thresh)
+        dset = MITStates(max_allowable_sim_of_classnames=thresh)
     else:
         raise ValueError(f'Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory.')
 
