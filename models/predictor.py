@@ -107,6 +107,50 @@ class Predictor(ABC):
         return pred_classnames, confidences
 
 
+class CHiLS(Predictor):
+    # CHiLS has this superclass reweighting step, so we'll implement its predict function entirely.
+    def predict(
+        self, 
+        image_embeddings: Tensor,
+        text_embeddings_by_subpop_by_cls: Dict[str, Dict[str, Tensor]],
+        classnames: List[str],
+        vlm_dim_handling: VLMPromptDimHandler# = AverageAndNormThenStack()
+    ) -> Tuple[List[str], Tensor]:
+        # First let's take out the classname only subpops
+        # Note that the classname by itself needs to be among the subpops (i.e. must also use vanilla attributer)
+        assert sum([(classname not in text_embeddings_by_subpop_by_cls[classname]) for classname in classnames]) == 0, \
+            "Missing classname alone as subpop for each class. You must include 'vanilla' as attributer when using CHiLS." 
+        classname_only_embeddings_dict = dict({
+            classname: text_embeddings_by_subpop_by_cls[classname][classname]
+                for classname in classnames
+        })
+        # We use MaxOfMax as auxiliary predictor to 1) get superclass (i.e. classname only) sims 2) get max subpop sim
+        max_of_max = MaxOfMax()
+        superclass_sims = max_of_max.compute_logits(image_embeddings, classname_only_embeddings_dict, classnames)
+        # Now we compute similarities for each subpopulations; but we only care about the max one per class
+        text_embeddings_by_cls = vlm_dim_handling.convert_to_embeddings_by_cls(text_embeddings_by_subpop_by_cls)
+        best_sim_per_class = max_of_max.compute_logits(image_embeddings, text_embeddings_by_cls, classnames)
+        # Now we reweight best_sim_per_class with superclass (i.e. classname only) sim
+        # print(best_sim_per_class.shape, superclass_sims[classname].shape)
+        reweighted_sims_by_class = torch.stack([
+            best_sim_per_class[:, i] * superclass_sims[:, i] 
+                for i, classname in enumerate(classnames)
+        ], axis=1)
+        probs = torch.nn.functional.softmax(reweighted_sims_by_class, dim=1)
+        confidences, preds = probs.max(1)
+
+        pred_classnames = [classnames[i.item()] for i in preds]
+        return pred_classnames, confidences
+    
+    def compute_logits(        
+        self,
+        image_embeddings: Tensor,
+        text_embeddings_by_cls: Dict[str, Tensor],
+        classnames: List[str] 
+    ) -> Tensor:
+        raise Exception("For CHiLS, everything should go directly through the predict function, since we reweight by superclass probabilities." +
+                        "In other words, predictor.compute_logits should never be called when predictor is CHiLS. There's a bug; find it.")
+
 class AverageVecs(Predictor):
     def compute_logits(
         self,
@@ -238,6 +282,8 @@ def init_predictor(key: str, lamb: float) -> Predictor:
     elif 'interpol_sims_top_' in key:
         k = int(key.split('_')[-1])
         predictor = LinearInterpolationAverageSimsTopK(k=k, lamb=lamb)
+    elif key == 'chils':
+        predictor = CHiLS()
     else:
         raise ValueError(f'Predictor with key {key} not recognized. Is it implemented? Should be in ./models/predictor.py')
     return predictor

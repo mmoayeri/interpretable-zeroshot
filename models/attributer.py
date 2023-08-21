@@ -223,6 +223,18 @@ class KindsRegionsIncomesQuery(LLMQuery):
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname}: a {attr} {classname}'
 
+class KindsChilsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='kinds_chils', 
+            question='Generate a list of 10 types of the following: {}. Only use up to three words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        if classname not in attr:
+            return f'{attr} {classname}'
+        else:
+            return attr
 
 class LLMBased(Attributer):
     def __init__(self, llm: LLM, llm_query: LLMQuery, cache_fname: str):
@@ -243,12 +255,13 @@ class LLMBased(Attributer):
 
         if os.path.exists(cache_path):
             dat = load_cached_data(cache_path)
-            assert self.llm_query.question == dat['llm_prompt'], "Attempting to use cached \
-            LLM responses. However, the exact LLM prompt differs from what is \
-            passed. This occurs when prompt_name is reused, but the associated \
-            full llm_prompt has changed. Either use a new prompt_name, change \
-            the name of the directory _CACHED_DATA_ROOT/subpops_from_llm/prompt_nickname, \
-            or delete that directory."
+            assert self.llm_query.question == dat['llm_prompt'], "Attempting to use cached"
+            "LLM responses. However, the exact LLM prompt differs from what is"
+            "passed. This occurs when prompt_name is reused, but the associated"
+            "full llm_prompt has changed. Either use a new prompt_name, change"
+            "the name of the directory _CACHED_DATA_ROOT/subpops_from_llm/prompt_nickname,"
+            f"or delete that directory.\nCurrent llm_prompt: {self.llm_query.question}.\n" 
+            f"Cached llm_prompt for query {self.llm_query.nickname}: {dat['llm_prompt']}"
             answers = dat['answers']
         else:
             answers = dict({classname:self.llm.answer_questions([self.llm_query.question.format(classname)])[0] 
@@ -293,6 +306,8 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
             query = KindsQuery()
         elif query_key == 'kinds_regions_incomes':
             query = KindsRegionsIncomesQuery()
+        elif query_key == 'kinds_chils':
+            query = KindsChilsQuery()
         else:
             raise ValueError(f'Query key {query_key} for LLM based attributer (with key {key}) not recognized.')
         attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())
