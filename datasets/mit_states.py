@@ -34,7 +34,7 @@ class MITStates(ClassificationDset):
 
         if max_allowable_sim_of_classnames < 1:
             disallowed_classes_path = f'{self.data_dir}/problem_classes/thresh_{max_allowable_sim_of_classnames}.pkl'
-            assert os.path.exists(disallowed_classes_path), 'Make sure to run record_mit_states_problem_classes with same max_allowable_sim_of_classnames in my_utils first'
+            assert os.path.exists(disallowed_classes_path), 'For now, only use 0.8 or 0.9 for max_allowable_sim_of_classnames. If you absolutely need to try something else, ping Mazda. He will run record_mit_states_problem_classes (a simple fn, it just lives somewhere else right now .. too low priority to fix atm).'
             self.disallowed_classes = load_cached_data(disallowed_classes_path)
         else:
             self.disallowed_classes = []
