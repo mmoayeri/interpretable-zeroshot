@@ -96,15 +96,16 @@ def test_run_full_pipeline():
     args_as_dict = dict({
         # 'dsetname': 'dollarstreet__country.name',
         # 'dsetname': 'geode__country',
-        'dsetname': 'mit_states_0.8',
-        # 'dsetname': 'living17',
-        'vlm': 'blip2',#'clip_ViT-B/16',
-        # 'vlm': 'clip_ViT-B/16',
+        # 'dsetname': 'mit_states_0.8',
+        'dsetname': 'living17',
+        # 'vlm': 'blip2',
+        'vlm': 'clip_ViT-B/16',
         'llm': 'vicuna-13b-v1.5',
-        'attributer_keys': ['vanilla', 'llm_kinds', 'income_level'],# 'country', 'region'], #'income_level'],
+        'attributer_keys': ['vanilla', 'llm_kinds_chils'],# 'groundtruth', 'country', 'region'], #'income_level'],
         'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
         'vlm_prompts': ['a photo of a {}.'],
-        'predictor': 'interpol_sims_top_2',
+        # 'predictor': 'interpol_sims_top_2',
+        'predictor': 'chils',
         'lamb': 0.5
     })
 
@@ -116,10 +117,10 @@ def test_run_full_pipeline():
 
     ### And to play with prediction consolidation strategy, you can do one of these
     # args_as_dict['predictor'] = 'max_of_max'
-    args_as_dict['predictor'] = 'average_top_6'
+    # args_as_dict['predictor'] = 'average_top_6'
 
     ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
-    args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
+    # args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
     # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
 
     args = Config(args_as_dict)
