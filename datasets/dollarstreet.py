@@ -13,7 +13,7 @@ class DollarstreetDataset(ClassificationDset):
     def __init__(
         self,
         attr_col = "region",
-        og_meta_data_path: str = "/checkpoint/mazda/dollarstreet_test_house_separated_with_metadata.csv",
+        og_meta_data_path: str = "/checkpoint/mazda/data/dollarstreet/dollarstreet_full_metadata.csv",
         data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
         transform=transforms.Compose(
             [
@@ -23,7 +23,7 @@ class DollarstreetDataset(ClassificationDset):
             ]
         )
     ):
-        self.dsetname = 'dollarstreet'
+        self.dsetname = 'dollarstreet_full'
         self.og_meta_data = pd.read_csv(og_meta_data_path, index_col=0).reset_index()
         self.data_dir = data_dir
         self.transform = transform
@@ -35,7 +35,7 @@ class DollarstreetDataset(ClassificationDset):
         ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
         self.static_img_path_list = self.data_df.index.tolist()
 
-        self.allowed_attr_cols = ['region', 'country.name', 'income_group']
+        self.allowed_attr_cols = ['region', 'country_name', 'income_level']
         self.set_attribute_column(attr_col)
 
     def collect_instances(self):
@@ -55,14 +55,14 @@ class DollarstreetDataset(ClassificationDset):
             valid_classnames.append(curr_valid_classnames)
 
             for attr_list, attr_name in zip([regions, country_names, income_groups], 
-                                            ['region', 'country.name', 'income_group']):
+                                            ['region', 'country_name', 'income_level']):
                 attr_list.append(row[attr_name])
 
             # we'll also update attrs_by_class for each valid_classname for the sample now
             classnames.extend(curr_valid_classnames)
 
         data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, regions, country_names, income_groups)),
-                               columns=['img_path', 'valid_classnames', 'region', 'country.name', 'income_group'])
+                               columns=['img_path', 'valid_classnames', 'region', 'country_name', 'income_level'])
         self.data_df = data_df.set_index('img_path')
 
         ### Order of classnames doesn't really matter anymore btw. 
@@ -92,7 +92,7 @@ class DollarstreetDataset(ClassificationDset):
             caption = f'{classname} from the region {attr}'
         elif self.attr_col == 'income_level':
             caption = f'{classname} from a {attr} country'
-        elif self.attr_col == 'country.name':
+        elif self.attr_col == 'country_name':
             caption = f'{classname} from the country {attr}'
         else:
             raise ValueError(f'Invalid attr_col {self.attr_col}. Must be one of {", ".join(self.allowed_attr_cols)}.')    

@@ -236,6 +236,26 @@ class KindsChilsQuery(LLMQuery):
         else:
             return attr
 
+class DescriptorsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='dclip',
+            question='List useful features for distinguishing a {} in an image. Only use up to five words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} which has {attr}'
+
+class StatesQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='states',
+            question='List 10 different ways in which a {} may appear in an image. Only use up to five words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} which is {attr}'
+
 class LLMBased(Attributer):
     def __init__(self, llm: LLM, llm_query: LLMQuery, cache_fname: str):
         # Note: cache_fname is typically just the dataset name
@@ -304,10 +324,14 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
         query_key = key.split('llm_')[-1]
         if query_key == 'kinds':
             query = KindsQuery()
+        elif query_key == 'states':
+            query = StatesQuery()
         elif query_key == 'kinds_regions_incomes':
             query = KindsRegionsIncomesQuery()
         elif query_key == 'kinds_chils':
             query = KindsChilsQuery()
+        elif query_key == 'dclip':
+            query = DescriptorsQuery()
         else:
             raise ValueError(f'Query key {query_key} for LLM based attributer (with key {key}) not recognized.')
         attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())
