@@ -72,6 +72,21 @@ The below list shows the arguments needed w. their type in parens, followed by a
 - lamb (float): only used for interpol_top_sims_k; I've never tried playing with this. 0.5 is probably fine
 </details>
 
+# Running sweeps
+
+The function cluster_sweep in the file sweep.py allows for many runs to be done in parallel on the cluster. 
+Usage: feed in a list for each of the allowable arguments mentioned above, along with a name for the log directory.
+Output: 
+- Results will live in log_dir in the 'experiments' dir in _CACHED_DATA_ROOT (/checkpoint/mazda/mmmd_results).
+- There will be a 'jobs' directory and a 'results' directory. The jobs directory is made automatically by submitit. 
+- In results/, there will be a json for every run which contains
+	- all input args
+	- all predicted classnames (along with identifiers); recall each run takes a single dataset as argument
+	- coarse grained metrics: accuracy, worst class acc, avg worst subpop acc, avg acc over worst 20th percentile of classes
+	- accuracy per region and income_level (when available; nan when not available)
+
+TODO: A class that we will use to process our results in a clean + consistent way. 
+
 # BLIP
 
 

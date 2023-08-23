@@ -1,6 +1,8 @@
-
-
 _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
+
+# These are the regions and income_levels we have gt annotations for (in DStreet and Geode)
+_REGIONS = ['Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 'SouthEastAsia', 'WestAsia']
+_INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
 
 _CONDENSED_OPENAI_TEMPLATES = [
     "itap of a {}.",

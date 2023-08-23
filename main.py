@@ -5,6 +5,7 @@ from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
 from models.attributer import init_attributer, infer_attrs
 from metrics import accuracy_metrics
+from tqdm import tqdm
 
 def main(args):
     ### Experiment mode: we want the output for a whole dataset, not just a single image
@@ -92,39 +93,46 @@ class Config(object):
         self.__dict__ = d
 
 def test_run_full_pipeline():
-    # These args will be a pure vanilla case
-    args_as_dict = dict({
-        # 'dsetname': 'dollarstreet__country.name',
-        # 'dsetname': 'geode__country',
-        # 'dsetname': 'mit_states_0.8',
-        'dsetname': 'living17',
-        # 'vlm': 'blip2',
-        'vlm': 'clip_ViT-B/16',
-        'llm': 'vicuna-13b-v1.5',
-        'attributer_keys': ['vanilla', 'llm_kinds_chils'],# 'groundtruth', 'country', 'region'], #'income_level'],
-        'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
-        'vlm_prompts': ['a photo of a {}.'],
-        # 'predictor': 'interpol_sims_top_2',
-        'predictor': 'chils',
-        'lamb': 0.5
-    })
+    dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+    llm_prompts = ['llm_'+x for x in ['kinds_regions_incomes', 'states', 'kinds', 'kinds_chils']]
 
-    ## To get our oracle case, you can uncomment this
-    # args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None)]
-    ### Or to use LLM prompts, you can try one of these!
-    # args_as_dict['llm_prompts'] = [('classname', None), ('kinds', 'List 16 different kinds of {}. Only use up to three words per list item.')]
-    # args_as_dict['llm_prompts'] = [('classname', None), ('kinds_regions_incomes', 'List 16 different ways in which a {} may appear across diverse geographic regions and incomes. Only use up to three words per list item.')]
+    for dsetname in tqdm(dsetnames):
+        for llm_prompt in tqdm(llm_prompts):
+            # These args will be a pure vanilla case
+            args_as_dict = dict({
+                'dsetname': dsetname,#'dollarstreet__country.name',
+                # 'dsetname': 'geode__country',
+                # 'dsetname': 'mit_states_0.8',
+                # 'dsetname': 'living17',
+                # 'vlm': 'blip2',
+                'vlm': 'clip_ViT-B/16',
+                'llm': 'vicuna-13b-v1.5',
+                'attributer_keys': [llm_prompt],#['income_level'],#'vanilla', 'llm_kinds_chils'],# 'groundtruth', 'country', 'region'], #'income_level'],
+                # 'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all', #
+                'vlm_prompt_dim_handler': 'stack_all', #
+                'vlm_prompts': ['a photo of a {}.'],
+                'predictor': 'interpol_sims_top_4',
+                # 'predictor': 'chils',
+                'lamb': 0.5
+            })
 
-    ### And to play with prediction consolidation strategy, you can do one of these
-    # args_as_dict['predictor'] = 'max_of_max'
-    # args_as_dict['predictor'] = 'average_top_6'
+            ## To get our oracle case, you can uncomment this
+            # args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None)]
+            ### Or to use LLM prompts, you can try one of these!
+            # args_as_dict['llm_prompts'] = [('classname', None), ('kinds', 'List 16 different kinds of {}. Only use up to three words per list item.')]
+            # args_as_dict['llm_prompts'] = [('classname', None), ('kinds_regions_incomes', 'List 16 different ways in which a {} may appear across diverse geographic regions and incomes. Only use up to three words per list item.')]
 
-    ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
-    # args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
-    # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
+            ### And to play with prediction consolidation strategy, you can do one of these
+            # args_as_dict['predictor'] = 'max_of_max'
+            # args_as_dict['predictor'] = 'average_top_4'
 
-    args = Config(args_as_dict)
-    _ = main(args)
+            ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
+            # args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
+            # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
+
+            args = Config(args_as_dict)
+            _ = main(args)
 
 if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
