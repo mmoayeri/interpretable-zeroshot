@@ -52,7 +52,7 @@ def cluster_sweep(
     results_path = log_dir_path + '/results/'
     os.makedirs(results_path, exist_ok=True)
     executor = submitit.AutoExecutor(folder=log_folder)
-    executor.update_parameters(timeout_min=10, slurm_partition="learnlab,devlab", gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+    executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
     jobs = []
     with executor.batch():
         ctr = 0
@@ -193,10 +193,26 @@ def sweep_geographic():
         log_dir = 'aug23_geographic')
 
 
+def new_llm_queries():
+    dsetnames = ['dollarstreet__region', 'geode__region', 'living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9']
+    # all_attributer_keys = [['vanilla', 'llm_backgrounds'], ['vanilla', 'llm_co_occurring_objects'], ['vanilla', 'llm_kinds_chils', 'llm_co_occurring_objects', 'llm_backgrounds']]
+    all_attributer_keys = [['vanilla', 'auto_global'], ['vanilla', 'llm_kinds_chils', 'llm_co_occurring_objects', 'llm_backgrounds', 'auto_global'],
+                            ['vanilla', 'llm_kinds_chils', 'llm_co_occurring_objects', 'llm_backgrounds', 'auto_global', 'llm_incomes']]
+    predictors = ['chils', 'interpol_sims_top_4', 'interpol_sims_top_16', 'average_sims', 'average_vecs']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompts = [['a photo of a {}'], ['USE OPENAI IMAGENET TEMPLATES']]
+    all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack', 'stack_all']
+    all_lambs = [0, 0.5]
+    cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, all_vlm_prompt_dim_handlers, vlms, all_lambs,
+        log_dir ='aug24_auto_global')   
+
+
+
 if __name__ == '__main__':
     # run_sweep()
     # sweep_chils()
     # sweep_dclip()
     # sweep_vanilla()
     # sweep_geographic()
-    sweep_all()
+    # sweep_all()
+    new_llm_queries()

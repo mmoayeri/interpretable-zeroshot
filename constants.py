@@ -8,6 +8,8 @@ _INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
 _METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs',
        'average worst subpop accuracy', 'Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 
        'SouthEastAsia', 'WestAsia', 'poor', 'lower middle class', 'upper middle class', 'rich']
+_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 
+                      'avg worst 20th percentile class accs', 'worst class accuracy']
 _INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
 
 

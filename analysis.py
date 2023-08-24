@@ -1,9 +1,8 @@
-from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS
+from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS
 import pandas as pd
 from typing import List, Optional
 from glob import glob
 import os
-from constants import _CACHED_DATA_ROOT
 import json
 from tqdm import tqdm
 import matplotlib as mpl
@@ -53,6 +52,7 @@ class Analyze:
             for key in keys: 
                 val = single_run_results[key]
                 if type(val) is list: 
+                    val = sorted(val) # alphabetize in case there was any inconsistency
                     val = str(val) # so that we can groupby if desired; list type is unhashable
                 all_results[key].append(val)
         
@@ -94,7 +94,7 @@ class Analyze:
         elif method == 'chils':
             df = self.collect_jsons_for_sweep('aug23_chils')
             if no_groundtruth:
-                df = df[df['attributer_keys'] == "['vanilla', 'llm_kinds_chils']"]
+                df = df[df['attributer_keys'] == "['llm_kinds_chils', 'vanilla']"]
         else:
             raise ValueError(f'Baseline {method} not recognized / not yet supported. Run the appropriate sweep and update this function.')
         return df
@@ -202,3 +202,11 @@ class Analyze:
 
         f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')
         avg_f.tight_layout(); avg_f.savefig(f'plots/{save_fname}_avg.jpg', dpi=300, bbox_inches='tight')
+
+    def baselines_summarize_stats(self, important_only: bool=True) -> pd.DataFrame:
+        # with important_only, we add focus on fairness metrics + overall acc 
+        baselines = self.baseline_numbers()
+        summarized = baselines.groupby('method').mean('accuracy')
+        if important_only:
+            summarized = summarized[_IMPORTANT_METRICS]
+        return summarized
