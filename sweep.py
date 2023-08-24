@@ -52,7 +52,7 @@ def cluster_sweep(
     results_path = log_dir_path + '/results/'
     os.makedirs(results_path, exist_ok=True)
     executor = submitit.AutoExecutor(folder=log_folder)
-    executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+    executor.update_parameters(timeout_min=10, slurm_partition="learnlab,devlab", gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
     jobs = []
     with executor.batch():
         ctr = 0
@@ -67,7 +67,14 @@ def cluster_sweep(
                             else:
                                 curr_predictors = all_predictors
                             for predictor in curr_predictors:
-                                curr_all_lambs = all_lambs if 'interpol' in predictor else [1]
+                                if 'interpol' in predictor:
+                                    curr_all_lambs = all_lambs
+                                # these next two don't affect the run; but makes more sense (lamb=1 corresponds to average_vecs/sims, lamb=0 is more like max of max)
+                                # in either case, we only loop over one value of lamb bc it is never used (you get identical runs w/ diff lambs)
+                                elif 'average' in predictor:
+                                    curr_all_lambs = [1]
+                                else:
+                                    curr_all_lambs = [0]
                                 for lamb in curr_all_lambs:
                                     if predictor == 'chils' and 'vanilla' not in attributer_keys:
                                         continue # such a job would fail
@@ -191,5 +198,5 @@ if __name__ == '__main__':
     # sweep_chils()
     # sweep_dclip()
     # sweep_vanilla()
-    sweep_geographic()
-    # sweep_all()
+    # sweep_geographic()
+    sweep_all()
