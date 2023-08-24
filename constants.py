@@ -4,6 +4,13 @@ _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
 _REGIONS = ['Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 'SouthEastAsia', 'WestAsia']
 _INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
 
+# List of numeric metrics
+_METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs',
+       'average worst subpop accuracy', 'Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 
+       'SouthEastAsia', 'WestAsia', 'poor', 'lower middle class', 'upper middle class', 'rich']
+_INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
+
+
 _CONDENSED_OPENAI_TEMPLATES = [
     "itap of a {}.",
     "a bad photo of the {}.",
