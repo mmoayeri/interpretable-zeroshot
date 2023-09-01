@@ -1,9 +1,8 @@
-from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS
+from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS
 import pandas as pd
 from typing import List, Optional
 from glob import glob
 import os
-from constants import _CACHED_DATA_ROOT
 import json
 from tqdm import tqdm
 import matplotlib as mpl
@@ -53,8 +52,10 @@ class Analyze:
             for key in keys: 
                 val = single_run_results[key]
                 if type(val) is list: 
+                    val = sorted(val) # alphabetize in case there was any inconsistency
                     val = str(val) # so that we can groupby if desired; list type is unhashable
                 all_results[key].append(val)
+            all_results['json'] = json_for_one_run
         
         df = pd.DataFrame(zip(*[all_results[key] for key in keys]), columns=keys)
         return df
@@ -92,9 +93,9 @@ class Analyze:
         elif method == 'dclip':
             df = self.collect_jsons_for_sweep('aug23_dclip')
         elif method == 'chils':
-            df = self.collect_jsons_for_sweep('aug23_chils')
+            df = self.collect_jsons_for_sweep('aug29_chils')
             if no_groundtruth:
-                df = df[df['attributer_keys'] == "['vanilla', 'llm_kinds_chils']"]
+                df = df[df['attributer_keys'] == "['llm_kinds_chils', 'vanilla']"]
         else:
             raise ValueError(f'Baseline {method} not recognized / not yet supported. Run the appropriate sweep and update this function.')
         return df
@@ -167,8 +168,8 @@ class Analyze:
         """
         n_subplots_per_row = min(len(metrics), n_subplots_per_row)
         n_rows = int(np.ceil(len(metrics) / n_subplots_per_row))
-        f, axs = plt.subplots(n_rows, n_subplots_per_row, figsize = (4*n_subplots_per_row, 4*n_rows))
-        avg_f, avg_axs = plt.subplots(n_rows, n_subplots_per_row, figsize = (3*n_subplots_per_row, 4*n_rows))
+        f, axs = plt.subplots(n_rows, n_subplots_per_row, figsize = (7*n_subplots_per_row, 4*n_rows))
+        avg_f, avg_axs = plt.subplots(n_rows, n_subplots_per_row, figsize = (5*n_subplots_per_row, 4*n_rows))
         if n_rows == 1:
             axs = [axs]
             avg_axs = [avg_axs]
@@ -198,7 +199,48 @@ class Analyze:
                 curr_ax.tick_params(axis='x', rotation=90)
                 curr_ax.set_xlabel(None)
                 curr_ax.spines[['right', 'top']].set_visible(False)
-            ax.legend(loc='lower right')
+            ax.legend().remove()#loc='lower right')
 
         f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')
         avg_f.tight_layout(); avg_f.savefig(f'plots/{save_fname}_avg.jpg', dpi=300, bbox_inches='tight')
+
+    def baselines_summarize_stats(self, important_only: bool=True) -> pd.DataFrame:
+        # with important_only, we add focus on fairness metrics + overall acc 
+        baselines = self.baseline_numbers()
+        summarized = baselines.groupby('method').mean('accuracy')
+        if important_only:
+            summarized = summarized[_IMPORTANT_METRICS]
+        return summarized
+
+
+    def k_vs_lamb(
+        self, 
+        log_dir: str = 'aug28_k_and_lamb', 
+        nrows: int = 2,
+        save_fname: str = 'k_vs_lamb'
+    ):
+        df = self.collect_jsons_for_sweep(log_dir)
+        df['k'] = df['predictor'].apply(lambda x: int(x.split('_')[-2]))
+        df2 = df.groupby(['k', 'lamb']).mean('accuracy').reset_index()
+        pivoted = df2.pivot(index="k", columns='lamb', values='accuracy')
+        sns.heatmap(pivoted, annot=True, fmt='.4f')
+
+        ncols = int(np.ceil(len(_IMPORTANT_METRICS / nrows)))
+        f, axs = plt.subplots(nrows, ncols, figsize=(6*ncols, 5*nrows))
+        for i, metric in enumerate(_IMPORTANT_METRICS):
+            pivoted = df2.pivot(index="k", columns='lamb', values=metric)
+            sns.heatmap(pivoted, annot=True, fmt='.4f', ax=axs[i % nrows, i // nrows])
+            axs[i % nrows, i // nrows].set_title(metric.title())
+        f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')
+
+    def adding_in_attributes(
+        self,
+        log_dir: str = 'aug29_add_in_attrs_new_order',
+        predictors_with_lamb_to_show : List[str] = ['average_sims_1.0', 'chils_0.0', 'max_of_max_0.0', 'new_average_top_8_sims_0.0'],
+        metrics: List[str] = ['accuracy', 'worst class accuracy']   
+    ):
+
+        add_in_attrs = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
+        add_in_attrs_base = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
+        df = pd.concat(add_in_attrs, add_in_attrs_base)
+        

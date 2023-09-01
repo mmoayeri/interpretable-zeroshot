@@ -88,7 +88,7 @@ class LLM(ABC):
 
 class Vicuna(LLM):
 
-    def __init__(self, model_key: str ='vicuna-13b-v1.3'):
+    def __init__(self, model_key: str ='vicuna-13b-v1.5'):
         self.model_key = model_key
         # Loading the LLM takes a lot of space, so we don't unless we need to. 
         self.model = 'NOT YET LOADED'
