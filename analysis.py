@@ -29,7 +29,13 @@ The point is that we have a clear and consistent methodology for processing resu
 
 class Analyze:
 
-    def collect_jsons_for_sweep(self, log_dir: str, do_not_return_preds: bool=True) -> pd.DataFrame:
+    def collect_jsons_for_sweep(
+        self, 
+        log_dir: str, 
+        do_not_return_preds: bool=True, 
+        save_df: bool=False,
+        save_df_root: str= './mazda_analysis/experiment_dfs/'
+    ) -> pd.DataFrame:
         results_dir_path = os.path.join(_CACHED_DATA_ROOT, 'experiments', log_dir, 'results', '*.json')    
         results_json_paths_for_all_runs = glob(results_dir_path)
 
@@ -58,6 +64,10 @@ class Analyze:
             all_results['json'] = json_for_one_run
         
         df = pd.DataFrame(zip(*[all_results[key] for key in keys]), columns=keys)
+
+        if save_df:
+            save_df_path = f'{save_df_root}{log_dir}.csv'
+            df.to_csv(save_df_path, index=False)
         return df
     
     def consolidate_sweeps(self, log_dirs: List[str], return_preds: bool=False) -> pd.DataFrame:
