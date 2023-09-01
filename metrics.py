@@ -73,11 +73,6 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: 
 
     worst_class_acc = np.min(list(acc_by_class.values()))
 
-    ### Let's try some less sensitive metrics, by inspecting the bottom 20^th percentile instead of just worst class for e.g.
-    sorted_accs = np.sort(list(acc_by_class.values()))
-    num_classes_in_bot_20th_percentile = int(np.round(0.2 * len(acc_by_class)))
-    avg_bot_20_class_accs = np.mean(sorted_accs[:num_classes_in_bot_20th_percentile]) 
-
     if dset.has_gt_attrs:
         worst_subpop_accs = [min(subpop_accs_for_class.values()) for subpop_accs_for_class in acc_by_subpop.values()]
         avg_worst_subpop_acc = np.mean(worst_subpop_accs)
@@ -88,9 +83,14 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: 
     metrics_dict = dict({
         'accuracy': acc, 
         'worst class accuracy': worst_class_acc,
-        'avg worst 20th percentile class accs': avg_bot_20_class_accs,
         'average worst subpop accuracy': avg_worst_subpop_acc,
     })
+
+    ### Let's try some less sensitive metrics, by inspecting the bottom x^th percentile instead of just worst class
+    sorted_accs = np.sort(list(acc_by_class.values()))
+    num_classes_in_bot_xth_percentile = dict({x:max(1, int(np.round(x/100 * len(acc_by_class)))) for x in [1,5,10,20]})
+    for x, num in num_classes_in_bot_xth_percentile.items():
+        metrics_dict[f'avg worst {x}th percentile class accs'] = np.mean(sorted_accs[:num])
 
     # And what we really care about is accuracy by region / income_level
     accs_by_attr = accuracy_by_region_and_income_level(is_correct_by_id, dset)

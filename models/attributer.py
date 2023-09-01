@@ -262,7 +262,11 @@ class KindsQuery(LLMQuery):
         )
 
     def caption_subpop(self, classname: str, attr: str) -> str:
-        return f'{attr}, a kind of {classname}'
+        # return f'{attr}, a kind of {classname}'
+        if classname not in attr:
+            return f'{attr} {classname}'
+        else:
+            return attr
 
 class KindsRegionsIncomesQuery(LLMQuery):
     def __init__(self):

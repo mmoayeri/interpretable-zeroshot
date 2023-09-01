@@ -123,7 +123,7 @@ class CLIP(VLM):
             text_embeddings = []
             tokens = clip.tokenize(texts).cuda()
             text_embeddings = self.model.encode_text(tokens)
-            text_embeddings /= text_embeddings.norm(dim=-1, keepdim=True)
+            text_embeddings = text_embeddings / text_embeddings.norm(dim=-1, keepdim=True)
         return text_embeddings
 
     def get_modelname(self) -> str:
@@ -202,6 +202,9 @@ class BLIP2(VLM):
                     {"text_input": processed_text_inputs}, mode="text"
                 ).text_embeds
         # Also returns a sequence of embeddings per text; we avg over sequence dim to get a single vec per text
+        # avg_embeddings = text_embeddings.mean(1)
+        # avg_embeddings /= avg_embeddings.norm(dim=-1, keepdim=True)
+        # return avg_embeddings
         return text_embeddings.mean(1)
 
     def get_image_transform(self):

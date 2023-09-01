@@ -39,7 +39,11 @@ class ClassificationDset(ABC, Dataset):
         return len(self.data_df)
 
     def __getitem__(self, ind: int):
-        img_path = self.static_img_path_list[ind]
+        if type(ind) is int:
+            img_path = self.static_img_path_list[ind]
+        else:
+            img_path = ind
+
         img = Image.open(img_path)
 
         img_shape = np.array(img).shape

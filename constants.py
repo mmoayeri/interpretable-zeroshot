@@ -13,6 +13,12 @@ _IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accura
 _INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
 
 
+_ALL_DSETNAMES = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+
+_ALL_ATTRIBUTERS = ['vanilla', 'llm_kinds', 'llm_dclip', 'llm_states', 'auto_global', 'llm_kinds_chils'
+                    'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds']
+
 _CONDENSED_OPENAI_TEMPLATES = [
     "itap of a {}.",
     "a bad photo of the {}.",
