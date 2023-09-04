@@ -19,23 +19,25 @@ Check out test_run_full_pipeline() in main.py. An example set of args is as foll
 
 ```
 args_as_dict = dict({
-	'dsetname': 'dollarstreet__country.name',
+	'dsetname': 'dollarstreet__country_name',
 	'vlm': 'blip2',
 	'llm': 'vicuna-13b-v1.5',
 	'attributer_keys': ['vanilla', 'income_level'],
 	'vlm_prompt_dim_handler': 'stack_all', 
 	'vlm_prompts': ['USE OPENAI IMAGENET TEMPLATES'],
-	'predictor': 'interpol_sims_top_4',
-	'lamb': 0.5
+	'predictor': 'average_top_4_sims',
+	'lamb': 0.25
 })
 config = Config(args_as_dict)
 output_dict = main(config)
 ```
 
-This uses the Dollarstreet dataset with country.name as the groundtruth attribute (used in computing worst subpop acc). 
+This uses the Dollarstreet dataset with country_name as the groundtruth attribute (used in computing worst subpop acc). 
 We also use both vanilla (i.e. classname only) and income_level (class-agnostic income descriptions) to generate attributes per class.
 We use the openai templates to create texts from subpop captions, and we stack all of them instead of averaging (due to vlm_prompt_dim_handler).
-Finally, we predict by interpolating w. lambda=0.5 (so just average) between the average of the top 4 sims per class and the average sim to everything in the class. 
+Finally, we predict by computing (1) the average of the top 4 sims per class, and (2) the average sim to every subpop vector per class, before (3) interpolating those two numbers w. lambda=0.25. 
+
+The interpolation is done as follows: ```logit = lambda * avg_all + (1 - lambda) * avg_top_k```.
 
 ## Running CHiLS
 
