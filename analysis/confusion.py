@@ -15,7 +15,8 @@ from analysis_utils import (
 )
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
-
+from models.predictor import init_predictor, init_vlm_prompt_dim_handler
+from models.attributer import init_attributer, infer_attrs
 
 def NoneOrStr(value):
     if value == "None":
@@ -63,37 +64,28 @@ def main(args):
             f"LLM {args.llm} not recognized. Is it implemented? Should be in in ./models/llm.py"
         )
     # STEP 1: confusion matrix of vanilla model
-    attrs_by_class = llm.infer_attrs(dset, [("classname", None)])
-    subpops_by_class = dset.subpop_descriptions_from_attrs(attrs_by_class)
-    text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(
-        subpops_by_class, ["a photo of a {}."]
-    )
+    attributer = init_attributer('vanilla', dset, llm)
+    texts_by_subpop_by_class = infer_attrs(dset.classnames, [attributer], args.vlm_prompts)
+    text_embeddings_by_subpop_by_cls = vlm.embed_subpopulation_descriptions(texts_by_subpop_by_class)
+    vlm_prompt_dim_handler = init_vlm_prompt_dim_handler('average_and_norm_then_stack')
 
     predictor = AverageVecs()
-    predictions, _ = predictor.predict(
-        image_embeddings, text_embeddings_by_cls, dset.classnames
-    )
+    predictions, confidences = predictor.predict(
+        image_embeddings, 
+        text_embeddings_by_subpop_by_cls, 
+        dset.classnames,
+        vlm_prompt_dim_handler 
+        )
 
-    confusion_mat = confusion_matrix_computation(dset, predictions, identifiers)
-    # top_mistakes = confusion_mat.stack().nlargest(20)
-    # for row in top_mistakes.index:
-    #     cl1,cl2 = row
-    #     print(f"{cl1} VS {cl2}")
+    confusion_mat, per_class_accuracy = confusion_matrix_computation(
+        dset, predictions, identifiers)
 
+    dset_prompt = 'llm_kinds'
     # STEP 2: study subpopulations text vectors
-    for llm_answers in [
-        [
-            (
-                "kinds_regions_incomes",
-                "List 16 ways in which a {} appear differently across diverse incomes and geographic regions. Use up to three words per list item.",
-            )
-        ],
-    ]:
-        mat = return_df_C_by_CK(dset, llm, vlm, llm_answers, args.vlm_prompts)
-        average_over_subpops = mat.droplevel(level=0).groupby(level=0, axis=1).mean()
-        for cls in average_over_subpops.index:
-            average_over_subpops.loc[cls][cls] = 0.0  # set to 0 the same to same class
-        class_averages = average_over_subpops.mean(axis=1)
+    class_mat, class_mat_vanilla = return_df_C_by_CK(
+        dset, llm, dset_prompt, vlm, args.vlm_prompts
+    )
+    return class_mat, class_mat_vanilla, per_class_accuracy
 
 
 if __name__ == "__main__":

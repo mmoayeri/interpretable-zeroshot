@@ -56,8 +56,8 @@ def main(args):
 
     # 4. Embed the subpopulation descriptions to build multiple-vec-per-class classification head.
     text_embeddings_by_subpop_by_cls = vlm.embed_subpopulation_descriptions(texts_by_subpop_by_class)
-
-    # 5. Make predictions
+    
+    # 5. Make predictions   
     predictor = init_predictor(args.predictor, args.lamb)
 
     # 5b. Make VLMPromptDim handler
