@@ -3,8 +3,9 @@ from typing import Dict, List
 from models.llm import LLM
 import os
 from constants import _CACHED_DATA_ROOT, _IMAGENET_OPENAI_TEMPLATES, _CONDENSED_OPENAI_TEMPLATES
-from my_utils import load_cached_data
+from my_utils import load_cached_data, cache_data
 from datasets import ClassificationDset
+from tqdm import tqdm
 
 class Attributer(ABC):
     '''
@@ -100,7 +101,18 @@ class ClassnameOnly(Attributer):
     def caption_subpop(self, classname: str, attr: str) -> str:
         return classname
 
-class Regions(Attributer):
+class ClassAgnostic(Attributer):
+    # For attributes that exist at a 'global' level: general descriptors that can be applied to all classes
+    def __init__(self, list_of_global_attrs: List[str]):
+        self.attrs = list_of_global_attrs
+
+    def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
+        return dict({classname: self.attrs for classname in classnames})
+    
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        raise NotImplementedError
+
+class Regions(ClassAgnostic):
     '''
     Using UN geoscheme: https://en.wikipedia.org/wiki/United_Nations_geoscheme
     regions_by_continent = dict({
@@ -114,28 +126,24 @@ class Regions(Attributer):
 
     ''' Using World Bank regions: https://datatopics.worldbank.org/sdgatlas/archive/2017/the-world-by-region.html '''
     def __init__(self):
-        self.regions = ['East Asia and Pacific', 'Europe and Central Asia',
-                        'Latin America and Caribbean', 'Middle East and North Africa',
-                        'North America', 'South Asia', 'Sub-Saharan Africa']
-
-    def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
-        return dict({classname: self.regions for classname in classnames})
+        regions = ['East Asia and Pacific', 'Europe and Central Asia',
+                'Latin America and Caribbean', 'Middle East and North Africa',
+                'North America', 'South Asia', 'Sub-Saharan Africa']
+        super().__init__(list_of_global_attrs=regions)
         
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname} from the region {attr}'
 
 
-class IncomeLevels(Attributer):
+class IncomeLevels(ClassAgnostic):
     def __init__(self):
-        self.income_levels = ['poor', 'lower middle class', 'upper middle class', 'rich']
-
-    def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
-        return dict({classname: self.income_levels for classname in classnames})
+        income_levels = ['poor', 'lower middle class', 'upper middle class', 'rich']
+        super().__init__(list_of_global_attrs=income_levels)
         
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname} from a {attr} country'
 
-class Countries(Attributer):
+class Countries(ClassAgnostic):
     '''
     From ChatGPT, asking 'Present the five most populous countries from each continent in the 
     form of a python dictionary', yields:
@@ -150,18 +158,62 @@ class Countries(Attributer):
     '''
 
     def __init__(self):
-        self.countries = [
-            'Nigeria', 'Ethiopia', 'Egypt', 'Democratic Republic of the Congo', 
+        countries = ['Nigeria', 'Ethiopia', 'Egypt', 'Democratic Republic of the Congo', 
             'South Africa', 'China', 'India', 'Indonesia', 'Pakistan', 'Bangladesh', 
             'Russia', 'Germany', 'United Kingdom', 'France', 'Italy', 'United States', 
             'Mexico', 'Canada', 'Guatemala', 'Cuba', 'Australia', 'Papua New Guinea', 
             'New Zealand', 'Fiji', 'Solomon Islands']
-
-    def infer_attrs(self, classnames: List[str]) -> Dict[str, List[str]]:
-        return dict({classname: self.countries for classname in classnames})
+        super().__init__(list_of_global_attrs=countries)
         
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname} from the country {attr}'
+
+class AutoGlobal(ClassAgnostic):
+    """
+    Building off the idea that we can ask the LLM to give us *categories* of general variation,
+    and then populate those categories with actual instances.
+
+    Here were my exact prompts to Vicuna-13b-v1.5: 
+    List 16 common general ways in which two instances of the same object may look different. 
+    For example, size, age, or cleanliness. Only use one word per list item.
+    [llm answers]
+    For each of those items, list up to four different general adjectives related to the time. Please use common words.
+    [llm answers]
+    Thanks. Please organize your output as a python dictionary.
+    [llm answers]
+
+    And voila, we get attrs_by_category below. Update: I took out 'orientation' which returned north/south/etc
+    """    
+    def __init__(self):
+        attrs_by_category = {
+            "size": ["small", "medium", "large", "tiny"],
+            "age": ["young", "mature", "ancient", "old"],
+            "cleanliness": ["dirty", "clean", "spotless", "grimy"],
+            "color": ["white", "black", "red", "blue"],
+            "texture": ["rough", "smooth", "soft", "hard"],
+            "material": ["plastic", "metal", "wood", "fabric"],
+            "shape": ["round", "square", "rectangular", "triangular"],
+            "position": ["upright", "horizontal", "vertical", "diagonal"],
+            "reflection": ["bright", "dull", "shiny", "matte"],
+            "transparency": ["clear", "opaque", "translucent", "transparent"],
+            "shine": ["glossy", "matte", "shiny", "dull"],
+            "pattern": ["striped", "polka-dotted", "plaid", "solid"],
+            "markings": ["spotted", "striped", "checked", "speckled"],
+            "surface": ["rough", "smooth", "bumpy", "even"],
+            "appearance": ["appealing", "unappealing", "attractive", "unattractive"]
+        }
+        self.attr_to_category = dict()
+        attrs = []
+        for cat, attrs_in_cat in attrs_by_category.items():
+            for attr in attrs_in_cat:
+                self.attr_to_category[attr] = cat
+                attrs.append(attr)
+        super().__init__(list_of_global_attrs=attrs)
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        cat = self.attr_to_category[attr]
+        return f'{attr} {classname}'# which has a {attr} {cat}'
+
 
 class GroundTruths(Attributer):
     def __init__(self, dset: ClassificationDset):
@@ -210,7 +262,11 @@ class KindsQuery(LLMQuery):
         )
 
     def caption_subpop(self, classname: str, attr: str) -> str:
-        return f'{attr}, a kind of {classname}'
+        # return f'{attr}, a kind of {classname}'
+        if classname not in attr:
+            return f'{attr} {classname}'
+        else:
+            return attr
 
 class KindsRegionsIncomesQuery(LLMQuery):
     def __init__(self):
@@ -222,6 +278,58 @@ class KindsRegionsIncomesQuery(LLMQuery):
     def caption_subpop(self, classname: str, attr: str) -> str:
         return f'{classname}: a {attr} {classname}'
 
+class KindsChilsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='kinds_chils', 
+            question='Generate a list of 10 types of the following: {}. Only use up to three words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        if classname not in attr:
+            return f'{attr} {classname}'
+        else:
+            return attr
+
+class DescriptorsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='dclip',
+            question='List useful features for distinguishing a {} in an image. Only use up to five words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} which has {attr}'
+
+class StatesQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='states',
+            question='List 10 different ways in which a {} may appear in an image. Only use up to five words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} which is {attr}'
+
+class BackgroundsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='backgrounds',
+            question='List ten different locations in which a {} may appear in an image. Only use up to three words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} with a {attr} in the background'
+
+class CoOccurringObjectsQuery(LLMQuery):
+    def __init__(self):
+        super().__init__(
+            nickname='co_occurring_objects',
+            question='In an image of a {}, list 10 other objects that may also appear. Only use up to three words per list item.'
+        )
+
+    def caption_subpop(self, classname: str, attr: str) -> str:
+        return f'{classname} which is next to a {attr}'
 
 class LLMBased(Attributer):
     def __init__(self, llm: LLM, llm_query: LLMQuery, cache_fname: str):
@@ -242,12 +350,13 @@ class LLMBased(Attributer):
 
         if os.path.exists(cache_path):
             dat = load_cached_data(cache_path)
-            assert self.llm_query.question == dat['llm_prompt'], "Attempting to use cached \
-            LLM responses. However, the exact LLM prompt differs from what is \
-            passed. This occurs when prompt_name is reused, but the associated \
-            full llm_prompt has changed. Either use a new prompt_name, change \
-            the name of the directory _CACHED_DATA_ROOT/subpops_from_llm/prompt_nickname, \
-            or delete that directory."
+            assert self.llm_query.question == dat['llm_prompt'], "Attempting to use cached"
+            "LLM responses. However, the exact LLM prompt differs from what is"
+            "passed. This occurs when prompt_name is reused, but the associated"
+            "full llm_prompt has changed. Either use a new prompt_name, change"
+            "the name of the directory _CACHED_DATA_ROOT/subpops_from_llm/prompt_nickname,"
+            f"or delete that directory.\nCurrent llm_prompt: {self.llm_query.question}.\n" 
+            f"Cached llm_prompt for query {self.llm_query.nickname}: {dat['llm_prompt']}"
             answers = dat['answers']
         else:
             answers = dict({classname:self.llm.answer_questions([self.llm_query.question.format(classname)])[0] 
@@ -276,7 +385,7 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
     # Baseline attributers
     if key == 'vanilla':
         attributer = ClassnameOnly()
-    elif key == 'ground_truth':
+    elif key == 'groundtruth':
         attributer = GroundTruths(dset)
     # 'Global info' (i.e. class-agnostic) level attributers
     elif key == 'region':
@@ -285,13 +394,25 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
         attributer = Countries()
     elif key == 'income_level':
         attributer = IncomeLevels()
+    elif key == 'auto_global':
+        attributer = AutoGlobal()
     # LLM based attributers
     elif 'llm_' in key:
         query_key = key.split('llm_')[-1]
         if query_key == 'kinds':
             query = KindsQuery()
+        elif query_key == 'states':
+            query = StatesQuery()
         elif query_key == 'kinds_regions_incomes':
             query = KindsRegionsIncomesQuery()
+        elif query_key == 'co_occurring_objects':
+            query = CoOccurringObjectsQuery()
+        elif query_key == 'backgrounds':
+            query = BackgroundsQuery()
+        elif query_key == 'kinds_chils':
+            query = KindsChilsQuery()
+        elif query_key == 'dclip':
+            query = DescriptorsQuery()
         else:
             raise ValueError(f'Query key {query_key} for LLM based attributer (with key {key}) not recognized.')
         attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())

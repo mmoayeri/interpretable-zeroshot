@@ -1,6 +1,23 @@
-
-
 _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
+
+# These are the regions and income_levels we have gt annotations for (in DStreet and Geode)
+_REGIONS = ['Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 'SouthEastAsia', 'WestAsia']
+_INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
+
+# List of numeric metrics
+_METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs',
+       'average worst subpop accuracy', 'Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 
+       'SouthEastAsia', 'WestAsia', 'poor', 'lower middle class', 'upper middle class', 'rich']
+_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 
+                      'avg worst 20th percentile class accs', 'worst class accuracy']
+_INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
+
+
+_ALL_DSETNAMES = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+
+_ALL_ATTRIBUTERS = ['vanilla', 'llm_kinds', 'llm_dclip', 'llm_states', 'auto_global', 'llm_kinds_chils'
+                    'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds']
 
 _CONDENSED_OPENAI_TEMPLATES = [
     "itap of a {}.",

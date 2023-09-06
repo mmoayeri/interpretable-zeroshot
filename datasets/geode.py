@@ -1,20 +1,23 @@
 from PIL import Image
 import os
-from torchvision import transforms
 import pandas as pd
 from torch.utils.data import Dataset
-from ast import literal_eval
 import numpy as np
+from torchvision import transforms
 from datasets.base_dataset import ClassificationDset
+from typing import List, Dict
 
-class DollarstreetDataset(ClassificationDset):
+
+### Thanks a million to Megan who provided great starter code!
+### Link here: https://github.com/fairinternal/Interplay_of_Model_Properties/blob/main/datasets/geode.py
+class GeodeDataset(ClassificationDset):
     has_gt_attrs = True
 
     def __init__(
         self,
-        attr_col = "region",
-        og_meta_data_path: str = "/checkpoint/mazda/data/dollarstreet/dollarstreet_full_metadata.csv",
-        data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
+        attr_col: str="region",
+        og_meta_data_path: str = "/checkpoint/meganrichards/datasets/geode/metadata_test_1k_final.csv",
+        data_dir: str = "/checkpoint/meganrichards/datasets/geode/images/",
         transform=transforms.Compose(
             [
                 transforms.Resize(256),
@@ -23,10 +26,11 @@ class DollarstreetDataset(ClassificationDset):
             ]
         )
     ):
-        self.dsetname = 'dollarstreet_full'
+        self.dsetname = 'geode'
         self.og_meta_data = pd.read_csv(og_meta_data_path, index_col=0).reset_index()
         self.data_dir = data_dir
         self.transform = transform
+        self.attr_col = attr_col
 
         ### self.collect_instances is responsible for creating self.data_df and classnames list
         self.classnames = self.collect_instances()
@@ -35,43 +39,41 @@ class DollarstreetDataset(ClassificationDset):
         ### THIS SHOULD REMAIN STATIC. Same with self.classnames 
         self.static_img_path_list = self.data_df.index.tolist()
 
-        self.allowed_attr_cols = ['region', 'country_name', 'income_level']
+        self.allowed_attr_cols = ['region', 'country']
         self.set_attribute_column(attr_col)
 
-    def collect_instances(self):
+    def collect_instances(self) -> List[str]:
+        # kind of weird but we return the list of unique classnames
         img_paths, valid_classnames = [], []
-        regions, country_names, income_groups = [], [], []
+        regions, country_names = [], []
 
         classnames = []
 
         for i, row in self.og_meta_data.iterrows():
-            img_rel_path, curr_valid_classnames_str = [row[x] for x in ['imageRelPath', 'topics']]
+            img_rel_path, classname = [row[x] for x in ['file_path', 'object']]
             img_path = os.path.join(self.data_dir, img_rel_path)
             img_paths.append(img_path)
 
-            # The og_meta_data dataframe saves the curr_valid_classnames list as a string
-            curr_valid_classnames = literal_eval(curr_valid_classnames_str)
-            # The next line appends a list of valid_classnames for our current sample to the running list
-            valid_classnames.append(curr_valid_classnames)
+            # GeoDE is single label, but we save it as multilabel for consistency
+            valid_classnames.append([classname])
 
-            for attr_list, attr_name in zip([regions, country_names, income_groups], 
-                                            ['region', 'country_name', 'income_level']):
+            for attr_list, attr_name in zip([regions, country_names], 
+                                            ['region', 'ip_country']):
                 attr_list.append(row[attr_name])
 
-            # we'll also update attrs_by_class for each valid_classname for the sample now
-            classnames.extend(curr_valid_classnames)
+            # we also keep track of all classnames we've seen, which this function returns after getting unique set
+            if classname not in classnames:
+                classnames.append(classname)
 
-        data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, regions, country_names, income_groups)),
-                               columns=['img_path', 'valid_classnames', 'region', 'country_name', 'income_level'])
+        data_df = pd.DataFrame(list(zip(img_paths, valid_classnames, regions, country_names)),
+                               columns=['img_path', 'valid_classnames', 'region', 'country'])
         self.data_df = data_df.set_index('img_path')
 
-        ### Order of classnames doesn't really matter anymore btw. 
-        classnames = list(set(classnames))
         return classnames
 
     def set_attribute_column(self, attr_col: str) -> None:
         assert attr_col in self.allowed_attr_cols, f'Invalid attr_col: {attr_col}. Must be one of {", ".join(self.allowed_attr_cols)}.'
-        print(f'Setting {attr_col} as attribute for Dollarstreet (i.e. subpopulations will be defined by a classname and {attr_col})')
+        print(f'Setting {attr_col} as attribute for GeoDE (i.e. subpopulations will be defined by a classname and {attr_col})')
         self.data_df['attr'] = self.data_df[attr_col]
         self.attr_col = attr_col
 
@@ -90,9 +92,7 @@ class DollarstreetDataset(ClassificationDset):
     def caption_gt_subpop(self, classname: str, attr: str) -> str:
         if self.attr_col == 'region':
             caption = f'{classname} from the region {attr}'
-        elif self.attr_col == 'income_level':
-            caption = f'{classname} from a {attr} country'
-        elif self.attr_col == 'country_name':
+        elif self.attr_col == 'country.name':
             caption = f'{classname} from the country {attr}'
         else:
             raise ValueError(f'Invalid attr_col {self.attr_col}. Must be one of {", ".join(self.allowed_attr_cols)}.')    

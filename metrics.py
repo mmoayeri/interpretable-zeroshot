@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import Tensor
 from typing import List, Dict
-
+from constants import _REGIONS, _INCOME_LEVELS
 
 def mark_as_correct(pred_classnames: List[str], ids: List[str], dset) -> Dict[str, bool]:
     '''
@@ -42,6 +42,17 @@ def acc_by_class_and_subpop(is_correct_by_id: Dict[str, bool], dset, min_cnt: in
     
     return acc_by_class, acc_by_subpop
 
+def accuracy_by_region_and_income_level(is_correct_by_id: Dict[str, bool], dset):
+    accs_by_attr = dict()
+    df = dset.data_df.reset_index()
+    df['is_correct'] = df['img_path'].apply(lambda x: is_correct_by_id[x])
+    if 'region' in df.columns:
+        for region, sub_df in df.groupby('region'):
+            accs_by_attr[region] = sub_df['is_correct'].mean() * 100
+    if 'income_level' in df.columns:
+        for income_level, sub_df in df.groupby('income_level'):
+            accs_by_attr[income_level] = sub_df['is_correct'].mean() * 100
+    return accs_by_attr
 
 def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: bool=False) -> Dict[str, float]:
     is_correct_by_id = mark_as_correct(pred_classnames, ids, dset)
@@ -67,22 +78,36 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: 
         avg_worst_subpop_acc = np.mean(worst_subpop_accs)
         std_worst_subpop_acc = np.std(worst_subpop_accs)
     else:
-        avg_worst_subpop_acc = -1
-    
+        avg_worst_subpop_acc = np.nan
+
     metrics_dict = dict({
         'accuracy': acc, 
         'worst class accuracy': worst_class_acc,
         'average worst subpop accuracy': avg_worst_subpop_acc,
-        'std dev worst subpop accuracy': std_worst_subpop_acc
     })
+
+    ### Let's try some less sensitive metrics, by inspecting the bottom x^th percentile instead of just worst class
+    sorted_accs = np.sort(list(acc_by_class.values()))
+    num_classes_in_bot_xth_percentile = dict({x:max(1, int(np.round(x/100 * len(acc_by_class)))) for x in [1,5,10,20]})
+    for x, num in num_classes_in_bot_xth_percentile.items():
+        metrics_dict[f'avg worst {x}th percentile class accs'] = np.mean(sorted_accs[:num])
+
+    # And what we really care about is accuracy by region / income_level
+    accs_by_attr = accuracy_by_region_and_income_level(is_correct_by_id, dset)
+    attrs_we_care_about = _REGIONS+_INCOME_LEVELS
+    for attr in attrs_we_care_about:
+        if attr in accs_by_attr:
+            metrics_dict[attr] = accs_by_attr[attr]
+        else:
+            metrics_dict[attr] = np.nan
 
     return metrics_dict
 
 def dollarstreet_worst_subpop_accs_all_attrs(pred_classnames, identifiers, dset):
+    # This works for both dollarstreet and geode, where we want to inspect wsa over diff gt attrs
     wsa_by_attr = dict()
-    for i, attr in enumerate(['region', 'country.name', 'income_group']):
+    for i, attr in enumerate(dset.allowed_attr_cols):
         dset.set_attribute_column(attr)
         metrics_dict = accuracy_metrics(pred_classnames, identifiers, dset)
-        wsa_by_attr[attr] = dict({'acc': metrics_dict['average worst subpop accuracy'],
-                                  'std': metrics_dict['std dev worst subpop accuracy']})
+        wsa_by_attr[attr] = metrics_dict['average worst subpop accuracy']
     return wsa_by_attr

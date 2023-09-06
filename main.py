@@ -1,10 +1,11 @@
 # import argparse
-from datasets import Breeds, DollarstreetDataset
-from models.vlm import CLIP
+from datasets import Breeds, DollarstreetDataset, GeodeDataset, MITStates
+from models.vlm import CLIP, InstructBLIP, BLIP2
 from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
 from models.attributer import init_attributer, infer_attrs
 from metrics import accuracy_metrics
+from tqdm import tqdm
 
 def load_dataset(args):
 
@@ -15,8 +16,12 @@ def load_dataset(args):
     elif 'dollarstreet' in args.dsetname:
         attr = args.dsetname.split('__')[-1]
         dset = DollarstreetDataset(attr_col = attr)
-    elif args.dsetname == 'mit_states':
-        dset = MITStates()
+    elif 'geode' in args.dsetname:
+        attr = args.dsetname.split('__')[-1]
+        dset = GeodeDataset(attr_col = attr)
+    elif 'mit_states' in args.dsetname:
+        thresh = float(args.dsetname.split('mit_states_')[-1])
+        dset = MITStates(max_allowable_sim_of_classnames=thresh)
     else:
         raise ValueError(f'Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory.')
 
@@ -31,10 +36,15 @@ def main(args):
     if 'clip' in args.vlm:
         model_key = args.vlm.split('clip_')[-1]
         vlm = CLIP(model_key=model_key)
+    elif 'instruct_blip' in args.vlm:
+        vlm = InstructBLIP()
+    elif args.vlm == 'blip2':
+        vlm = BLIP2()
     else:
         raise ValueError(f'VLM {args.vlm} not recognized. Is it implemented? Should be in in ./models/vlm.py')
     # 2. Get image embeddings
     image_embeddings, identifiers = vlm.embed_all_images(dset)
+    # image_embeddings = image_embeddings.detach().cpu() # adding this support in case I run into memory issues next week...
 
 
     # 3. Get descriptions per class. Note that we can (and usually do) have multiple descriptions per class, 
@@ -79,6 +89,7 @@ def main(args):
     print(f'VLM prompts: {args.vlm_prompts}')
     print(f'Prediction consolidation strategy: {args.predictor}')
     print(f'VLM Prompt dim handling: {args.vlm_prompt_dim_handler}')
+    print(f'Lambda: {args.lamb}')
     print(', '.join([f'{metric_name}: {metric_val:.2f}%' for (metric_name, metric_val) in metric_dict.items()]))
     
     output_dict = dict({'pred_classnames':pred_classnames, 'identifiers': identifiers, 'metric_dict':metric_dict, 'dset': dset})
@@ -91,40 +102,21 @@ class Config(object):
         self.__dict__ = d
 
 def test_run_full_pipeline():
-    # These args will be a pure vanilla case
+
     args_as_dict = dict({
-        'dsetname': 'dollarstreet__income_group',
-        # 'dsetname': 'living17',
-        'vlm': 'clip_ViT-B/16',
+        'dsetname': 'nonliving26', # other options: see _ALL_DSETNAMES in constants.py
+        'vlm': 'blip2',#'clip_ViT-B/16', # other option: 'blip2'
         'llm': 'vicuna-13b-v1.5',
-        # 'llm_prompts': [('classname', None)],
-        'attributer_keys': ['vanilla', 'income_level', 'country', 'region'], #'income_level'],
-        'vlm_prompt_dim_handler': 'average_and_norm_then_stack',
-        'vlm_prompts': ['a photo of a {}.'],
-        'predictor': 'average_top_2',
-        'lamb': 0.5
+        'attributer_keys': ['vanilla', 'llm_kinds'],# 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
+        'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all',
+        'vlm_prompts': ['USE OPENAI IMAGENET TEMPLATES'], # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
+        # 'predictor': 'average_top_8_sims',
+        'predictor': 'chils',
+        'lamb': 0.0 # this parameter only goes into effect when using average_top_k_{sims or vecs}
     })
-
-    ## To get our oracle case, you can uncomment this
-    # args_as_dict['llm_prompts'] = [('classname', None), ('groundtruth', None)]
-    ### Or to use LLM prompts, you can try one of these!
-    # args_as_dict['llm_prompts'] = [('classname', None), ('kinds', 'List 16 different kinds of {}. Only use up to three words per list item.')]
-    # args_as_dict['llm_prompts'] = [('classname', None), ('kinds_regions_incomes', 'List 16 different ways in which a {} may appear across diverse geographic regions and incomes. Only use up to three words per list item.')]
-
-    ### And to play with prediction consolidation strategy, you can do one of these
-    # args_as_dict['predictor'] = 'max_of_max'
-    # args_as_dict['predictor'] = 'average_top_6'
-
-    ### You can also use the ImageNet VLM prompts that were handcrafted for CLIP
-    args_as_dict['vlm_prompts'] = ['USE OPENAI IMAGENET TEMPLATES']
-    # args_as_dict['vlm_prompts'] = ['USE CONDENSED OPENAI TEMPLATES']
 
     args = Config(args_as_dict)
     _ = main(args)
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument()
-
-
     test_run_full_pipeline()
