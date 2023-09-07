@@ -7,7 +7,7 @@ if "/private/home/dianeb/pretty-mmmd/" not in sys.path:
 from models.vlm import CLIP
 from models.llm import Vicuna
 from main import load_dataset
-from models.predictor import AverageVecs
+from models.predictor import AverageTopK
 from analysis_utils import (
     confusion_matrix_computation,
     return_df_of_avg,
@@ -68,8 +68,7 @@ def main(args):
     texts_by_subpop_by_class = infer_attrs(dset.classnames, [attributer], args.vlm_prompts)
     text_embeddings_by_subpop_by_cls = vlm.embed_subpopulation_descriptions(texts_by_subpop_by_class)
     vlm_prompt_dim_handler = init_vlm_prompt_dim_handler('average_and_norm_then_stack')
-
-    predictor = AverageVecs()
+    predictor = AverageTopK(mode='vecs', lamb=1)
     predictions, confidences = predictor.predict(
         image_embeddings, 
         text_embeddings_by_subpop_by_cls, 

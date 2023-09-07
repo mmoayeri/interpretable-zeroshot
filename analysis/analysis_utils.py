@@ -34,7 +34,7 @@ def return_df_C_by_CK(dset, llm, dset_prompt, vlm, vlm_prompts):
     texts_by_subpop_by_class = infer_attrs(dset.classnames, [attributer], vlm_prompts)
     text_embeddings_by_cls = vlm.embed_subpopulation_descriptions(texts_by_subpop_by_class)
     vlm_prompt_dim_handler = init_vlm_prompt_dim_handler('average_and_norm_then_stack')
-    text_embeddings = vlm_prompt_dim_handler.convert_to_embeddings_by_cls(text_embeddings_by_cls)
+    text_embeddings, subpop_captions_by_cls = vlm_prompt_dim_handler.convert_to_embeddings_by_cls(text_embeddings_by_cls)
     
     cossim = torch.nn.CosineSimilarity(dim=2)
     mat = dict()
@@ -46,7 +46,7 @@ def return_df_C_by_CK(dset, llm, dset_prompt, vlm, vlm_prompts):
 
         for c2 in range(len(dset.classnames)):
             cls2 = dset.classnames[c2]
-            subpops_cl2, subpops_names_cl2 = return_subpops_tensor_names(text_embeddings[cls2])
+            subpops_cl2, subpops_names_cl2 = text_embeddings[cls2], subpop_captions_by_cls[cls2]
 
             s = cossim(baseline_cl1.unsqueeze(1), subpops_cl2.unsqueeze(0))
             mi = [(cls2, i) for i in subpops_names_cl2]
