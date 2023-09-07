@@ -1,11 +1,12 @@
 import pickle as pkl
 import numpy as np
-from typing import List
+from typing import List, Dict
 import json
+from waffle_constants import CHARACTER_LIST
+from collections import defaultdict
 
 pre_descriptor_text = ""
 label_before_text = "A photo of a "
-descriptor_separator = ", "
 label_after_text = "."
 
 
@@ -44,12 +45,13 @@ def modify_descriptor(descriptor: str, apply_changes: bool):
     return descriptor
 
 
-def get_waffle_descriptions(
+def get_original_waffle_descriptions(
     dataset: str = "food101",
     key_list: List[str] = ["dog", "cat"],
     waffle_count: int = 15,
 ):
-    descriptor_fname = f"./descriptors/descriptors_{dataset}.json"
+    """Implements logic exactly as it is in the original Waffle codebase"""
+    descriptor_fname = f"descriptors/descriptors_{dataset}.json"
     gpt_descriptions = load_json(descriptor_fname)
 
     # Replace empty descriptor lists if necessary.
@@ -60,12 +62,12 @@ def get_waffle_descriptions(
     # Get complete list of available descriptions.
     descr_list = [list(values) for values in gpt_descriptions.values()]
     descr_list = np.array([x for y in descr_list for x in y])
-    print("descr_list ", descr_list)
 
     # List of available classes.
     key_list = list(gpt_descriptions.keys())
 
     ### Descriptor Makers.
+    descriptor_separator = ", "
     structured_descriptor_builder = (
         lambda item, cls: f"{pre_descriptor_text}{label_before_text}{wordify(cls)}{descriptor_separator}{modify_descriptor(item, True)}{label_after_text}"
     )
@@ -132,7 +134,80 @@ def get_waffle_descriptions(
         gpt_descriptions[key] = [
             x.replace(wordify(match_key), wordify(key)) for x in gpt_descriptions[key]
         ]
-    return get_waffle_descriptions
+    return gpt_descriptions
+
+
+# Mark code
+
+
+class Waffle:
+    pass
+
+
+def get_waffle_descriptions(
+    dataset: str = "food101",
+    classnames: List[str] = ["dog", "cat"],
+    waffle_count: int = 15,
+) -> Dict[str, List[str]]:
+    """Basic Reimplementation of Waffle CLIP"""
+    word_list = pkl.load(open("word_list.pkl", "rb"))
+
+    avg_num_words = int(
+        np.max([np.round(np.mean([len(wordify(x).split(" ")) for x in classnames])), 1])
+    )
+    avg_word_length = int(
+        np.round(
+            np.mean([np.mean([len(y) for y in wordify(x).split(" ")]) for x in classnames])
+        )
+    )
+    print(f"{avg_num_words=}")
+    print(f"{avg_word_length=}")
+    word_list = [x[:avg_word_length] for x in word_list]
+
+    num_spaces = (
+        int(np.round(np.mean([np.sum(np.array(list(x)) == " ") for x in classnames]))) + 1
+    )
+    num_chars = int(
+        np.ceil(np.mean([np.max([len(y) for y in x.split(" ")]) for x in classnames]))
+    )
+
+    num_chars += num_spaces - num_chars % num_spaces
+    print(f"{num_chars=}")
+    sample_key = ""
+
+    for s in range(num_spaces):
+        for _ in range(num_chars // num_spaces):
+            sample_key += "a"
+        if s < num_spaces - 1:
+            sample_key += " "
+
+    descriptor_separator = ", "
+    structured_descriptor_builder = (
+        lambda item, cls: f"{pre_descriptor_text}{label_before_text}{wordify(cls)}{descriptor_separator}{modify_descriptor(item, True)}{label_after_text}"
+    )
+
+    descriptions = defaultdict(list)
+
+    for class_name in classnames:
+        for _ in range(waffle_count):
+            base_word = ""
+            for a in range(avg_num_words):
+                base_word += np.random.choice(word_list, 1, replace=False)[0]
+                if a < avg_num_words - 1:
+                    base_word += " "
+            descriptions[class_name].append(
+                structured_descriptor_builder(base_word, class_name)
+            )
+            noise_word = ""
+            for c in sample_key:
+                if c != " ":
+                    noise_word += np.random.choice(CHARACTER_LIST, 1, replace=False)[0]
+                else:
+                    noise_word += ", "
+            descriptions[class_name].append(
+                structured_descriptor_builder(noise_word, class_name)
+            )
+    return descriptions
 
 
 if __name__ == "__main__":
