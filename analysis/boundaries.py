@@ -17,6 +17,7 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import torch
+from metrics import mark_as_correct, acc_by_class_and_subpop
 def return_df_CK_by_CK(dset, vlm):
 
     # WARNING : this is uper slow if we have tons of subpop
@@ -51,7 +52,7 @@ def return_df_CK_by_CK(dset, vlm):
         for subpop1 in subpops[cls]:
             for subpop2 in subpops[cls]:
                 mat.loc[subpop1][subpop2] = 0.0  # set to 0 the same to same class we want to compare confusing subpop of different classes)
-    return mat
+    return mat, text_embeddings_by_subpop_by_cls, subpops
 
 def main(args):
 
@@ -85,13 +86,11 @@ def main(args):
     ###### IMAGES EMBEDDINGS 
     image_embeddings, identifiers = vlm.embed_all_images(dset)
 
-    ###### VANILLA MODEL 
-
     ###### PCA 
     df_images = pd.DataFrame(image_embeddings.cpu(), index=identifiers)
-    pca = PCA(n_components=2)
-    # pca = TSNE(n_components=2)
-
+    # pca = PCA(n_components=2)
+    # TODO: random state setting?
+    pca = TSNE(n_components=2, random_state=0)
     #### IF WE DO PCA/TSNE WITH EVERYBODY 
     df_scaled = StandardScaler().fit_transform(df_images)
     pca_features = pca.fit_transform(df_scaled)
@@ -101,14 +100,28 @@ def main(args):
         index=identifiers)
     
     # TODO: keep "a kind of" in prompts? cf bow behavior
-    mat = return_df_CK_by_CK(dset,vlm)
+    mat, text_embeddings_by_subpop_by_cls, subpops= return_df_CK_by_CK(dset,vlm)
+
+    ##### DO THE PREDICTIONS 
+    ###### VANILLA MODEL 
+    vlm_prompt_dim_handler = init_vlm_prompt_dim_handler(args.vlm_prompt_dim_handler)
+    predictor = init_predictor('average_vecs', 1.0)
+    pred_classnames, _ = predictor.predict(
+        image_embeddings, 
+        text_embeddings_by_subpop_by_cls, 
+        dset.classnames,
+        vlm_prompt_dim_handler 
+        )
+    vanilla_is_correct_by_id = mark_as_correct(pred_classnames, identifiers, dset)
+    vanilla_acc = acc_by_class_and_subpop(vanilla_is_correct_by_id,dset,min_cnt=10)
     idxs = np.argsort(mat.to_numpy().ravel())[-10:] 
     rows, cols = idxs//mat.shape[0], idxs%mat.shape[0]
     for i in range(10):
         str1 = mat.index[rows[i]]
         str2 = mat.index[cols[i]]
         print(str1,str2)
-
+        
+        import pdb; pdb.set_trace()
         cls1 = str1.split(' ')[-1]
         cls2 = str2.split(' ')[-1]
         cls1_identifiers = dset.ids_for_class(cls1)
