@@ -157,7 +157,7 @@ def test_waffle():
                 "USE OPENAI IMAGENET TEMPLATES"
             ],  # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
             # 'predictor': 'average_top_8_sims',
-            "predictor": "chils",
+            "predictor": "average_sims",
             "lamb": 0.0,  # this parameter only goes into effect when using average_top_k_{sims or vecs}
         }
     )
