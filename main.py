@@ -97,12 +97,12 @@ class Config(object):
 def test_run_full_pipeline():
 
     args_as_dict = dict({
-        'dsetname': 'nonliving26', # other options: see _ALL_DSETNAMES in constants.py
+        'dsetname': 'dollarstreet__region',#'nonliving26', # other options: see _ALL_DSETNAMES in constants.py
         'vlm': 'blip2',#'clip_ViT-B/16', # other option: 'blip2'
         'llm': 'vicuna-13b-v1.5',
         'attributer_keys': ['vanilla', 'llm_kinds'],# 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
         'vlm_prompt_dim_handler': 'average_and_norm_then_stack',#'stack_all',
-        'vlm_prompts': ['USE OPENAI IMAGENET TEMPLATES'], # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
+        'vlm_prompts': ['a photo of a {}.'],#['USE OPENAI IMAGENET TEMPLATES'], # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
         # 'predictor': 'average_top_8_sims',
         'predictor': 'chils',
         'lamb': 0.0 # this parameter only goes into effect when using average_top_k_{sims or vecs}

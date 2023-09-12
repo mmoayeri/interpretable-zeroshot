@@ -1,0 +1,15 @@
+\begin{tabular}{lr}
+\toprule
+{} &  Pearson's \$r\$ \\
+Dataset             &                \\
+\midrule
+Living17            &          -0.11 \\
+Entity13            &          -0.74 \\
+Entity30            &          -0.54 \\
+Nonliving26         &          -0.42 \\
+MIT States (Coarse) &          -0.48 \\
+MIT States (Fine)   &          -0.55 \\
+Dollarstreet        &          -0.21 \\
+Geode               &          -0.08 \\
+\bottomrule
+\end{tabular}

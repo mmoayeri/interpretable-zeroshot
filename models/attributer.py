@@ -70,10 +70,13 @@ def infer_attrs(
     in the above example, vlm_prompts would be ['a photo of a {}', 'a drawing of a {}']
     '''
     subpops_by_class = dict({classname: [] for classname in classnames})
+    # subpop_to_attributer = dict()
     for attributer in attributers:
         curr_subpops_by_class = attributer.subpop_captions_by_class(classnames)
         for classname, subpops in curr_subpops_by_class.items():
             subpops_by_class[classname].extend(subpops)
+            # for subpop in subpops:
+            #     subpop_to_attributer[subpop] = attributer.get_attributer_name()
         
     subpops_by_class = dict({classname:list(set(subpops)) for classname, subpops in subpops_by_class.items()})
 

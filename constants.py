@@ -1,4 +1,23 @@
-_CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
+### These will need to be updated per user. TODO: put breeds_info.json into repo so users get it upon cloning
+# e.g. these are path's mazda uses while on UMD's cluster
+_CACHED_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/'
+_IMAGENET_DATA_ROOT = '/fs/cml-datasets/ImageNet/ILSVRC2012/'
+_DSTREET_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/dstreet_to_keep/'
+_MIT_STATES_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/mit_states/'
+_BREEDS_INFO_FPATH = '/cmlscratch/mmoayeri/meta_work/meta_files/breeds_info.json'
+_IMAGENET_LABELS_TXT = '/cmlscratch/mmoayeri/meta_work/meta_files/labels.txt'
+_DSTREET_INFO_FPATH = '/cmlscratch/mmoayeri/meta_work/meta_files/dollarstreet_full_metadata.csv'
+_GEODE_INFO_FPATH = "/cmlscratch/mmoayeri/meta_work/meta_files/metadata_test_1k_final.csv"
+
+### These are the versions that should be used when operating on devfair
+# _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
+_META_IMAGENET_DATA_ROOT = '/datasets01/imagenet_full_size/061417/'
+_META_DSTREET_DATA_ROOT = '/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/'
+_META_MIT_STATES_DATA_ROOT = '/checkpoint/mazda/data/mit_states'
+# _BREEDS_INFO_FPATH = '/private/home/mazda/multiple_cls_vecs/datasets/breeds_info.json'
+# _IMAGENET_LABELS_TXT = '/datasets01/imagenet_full_size/061417/labels.txt'
+# _DSTREET_INFO_FPATH = '/checkpoint/mazda/data/dollarstreet/dollarstreet_full_metadata.csv'
+# _GEODE_INFO_FPATH = "/checkpoint/meganrichards/datasets/geode/metadata_test_1k_final.csv"
 
 # These are the regions and income_levels we have gt annotations for (in DStreet and Geode)
 _REGIONS = ['Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 'SouthEastAsia', 'WestAsia']

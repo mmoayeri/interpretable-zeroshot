@@ -1,0 +1,8 @@
+\begin{tabular}{lrrrrrrrr}
+dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 82.24 & 21.77 & 36.27 & 57.12 & 34.46 & 83.49 & 53.83 & 29.49 \\
+DCLIP & 81.82 & 22.54 & 36.87 & 54.54 & 33.46 & 84.50 & 53.01 & 29.18 \\
+CHiLS & \textbf{83.53} & 23.77 & \textbf{42.50} & 59.50 & 35.20 & 84.56 & 53.69 & 29.22 \\
+Ours & 83.47 & \textbf{25.31} & 39.60 & \textbf{59.88} & \textbf{35.50} & \textbf{85.45} & \textbf{54.43} & \textbf{30.03} \\
+\end{tabular}
