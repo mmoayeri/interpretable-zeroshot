@@ -1,8 +1,9 @@
 \begin{tabular}{lrrrrrrrr}
-dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) \\
+dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet  Region & Geode  Region & MIT States (Coarse) & MIT States (Fine) \\
 method &  &  &  &  &  &  &  &  \\
-Vanilla & nan & nan & nan & nan & 33.93 & 87.29 & nan & nan \\
-DCLIP & nan & nan & nan & nan & 33.38 & 88.16 & nan & nan \\
-CHiLS & nan & nan & nan & nan & 33.96 & 87.95 & nan & nan \\
-Ours & nan & nan & nan & nan & \textbf{35.57} & \textbf{89.29} & nan & nan \\
+Vanilla & nan & nan & nan & nan & 34.01 & 87.29 & nan & nan \\
+DCLIP & nan & nan & nan & nan & 33.34 & 88.16 & nan & nan \\
+Waffle & nan & nan & nan & nan & 34.38 & 89.01 & nan & nan \\
+CHiLS & nan & nan & nan & nan & 33.93 & 87.95 & nan & nan \\
+Ours & nan & nan & nan & nan & \textbf{35.31} & \textbf{89.07} & nan & nan \\
 \end{tabular}

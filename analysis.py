@@ -262,34 +262,39 @@ class Analyze:
         f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')
 
     def our_best_method(self) -> pd.DataFrame:
-        # df = self.collect_jsons_for_sweep('aug28_add_in_attrs')
-        df = pd.read_csv('mazda_analysis/experiment_dfs/aug28_add_in_attrs.csv')
-        best_attr_keys =  "['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', " + \
-                            "'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']"
-        ours = df[(df.predictor == 'new_average_top_16_sims') & (df.attributer_keys == best_attr_keys) & (df.lamb == 0)]
+        df = self.collect_jsons_for_sweep('sep14_our_bests_2')
+        # df = pd.read_csv('mazda_analysis/experiment_dfs/aug28_add_in_attrs.csv')
+        # best_attr_keys =  "['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', " + \
+        #                     "'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']"
+        best_attr_keys =  "['auto_global', 'income_level', 'llm_co_occurring_objects', 'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']"
+        # ours = df[(df.predictor == 'new_average_top_16_sims') & (df.attributer_keys == best_attr_keys) & (df.lamb == 0)]
+        ours = df[(df.predictor == 'average_top_16_sims') & (df.attributer_keys == best_attr_keys) & (df.lamb == 0)]
+        ours['method'] = ['ours']*len(ours)
         return ours
 
     def beautify_dsetname(self, dsetname: str) -> str:
         return dsetname.split('_full')[0].replace('_', ' ').title().replace('Mit', 'MIT').replace('0.8', '(Coarse)').replace('0.9','(Fine)').replace('Thresh ', '')
 
     def beautify_methodname(self, methodname: str) -> str:
-        renamer = dict({'vanilla':'Vanilla', 'dclip': 'DCLIP', 'chils': 'CHiLS', 'ours':'Ours'})
+        renamer = dict({'vanilla':'Vanilla', 'dclip': 'DCLIP', 'chils': 'CHiLS', 'ours':'Ours', 'waffle':'Waffle'})
         return renamer[methodname]
 
     def acc_by_method_table(self):
         summary = self.baselines_summarize_stats()
         ours = self.our_best_method()
-        summary.loc['ours'] = ours.mean('accuracy')[_IMPORTANT_METRICS]
+        # Idk why i need to do this groupby 'lamb', but do not fear, there is only one lamb value
+        ours = ours.groupby('method').mean('accuracy')[_IMPORTANT_METRICS]
+        summary = pd.concat([summary, ours]) 
         table_str = summary.to_latex(float_format="{:.2f}".format)
-        with open('for_paper/acc_by_method.txt', 'w') as f:
-            f.write(table_str)
+        # with open('for_paper/acc_by_method.txt', 'w') as f:
+        #     f.write(table_str)
         print(table_str)
 
     def tables_method_by_dset_per_metric(self, save_root: str = 'for_paper/tables/by_method_and_dset/'):
         os.makedirs(save_root, exist_ok=True)
         baselines = self.baseline_numbers()
         ours = self.our_best_method()
-        ours['method'] = ['ours'] * len(ours)
+        # ours['method'] = ['ours'] * len(ours)
         ours_with_base = pd.concat([baselines, ours])
         grouped = ours_with_base.groupby(['method', 'dsetname']).mean('accuracy')
         for metric in _IMPORTANT_METRICS:
@@ -299,8 +304,9 @@ class Analyze:
             df = df.reindex(['vanilla', 'dclip', 'waffle', 'chils', 'ours'])
             df = df.rename(columns=self.beautify_dsetname, index=self.beautify_methodname)
             table_str = df.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()#float_format="{:.2f}".format)
-            with open(f'for_paper/tables/by_method_and_dset/{metric}.txt', 'w') as f:
-                f.write(table_str)
+            print(table_str)
+            # with open(f'{save_root}/{metric}.txt', 'w') as f:
+            #     f.write(table_str)
             
     def by_group(self, attr_keys):
         groups = []
