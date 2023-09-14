@@ -1,0 +1,8 @@
+\begin{tabular}{lrrrrrrrr}
+dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & nan & nan & nan & nan & 27.92 & nan & nan & nan \\
+DCLIP & nan & nan & nan & nan & 27.48 & nan & nan & nan \\
+CHiLS & nan & nan & nan & nan & 28.10 & nan & nan & nan \\
+Ours & nan & nan & nan & nan & \textbf{30.05} & nan & nan & nan \\
+\end{tabular}

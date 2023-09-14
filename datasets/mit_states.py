@@ -8,6 +8,7 @@ import glob
 import os
 from datasets import ClassificationDset
 from my_utils import load_cached_data
+from constants import _MIT_STATES_DATA_ROOT
 
 standard_transform = transforms.Compose([transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()])
 
@@ -18,11 +19,10 @@ class MITStates(ClassificationDset):
     """
     has_gt_attrs = True
 
-    # def __init__(self, data_dir='/private/home/mazda/data/mit_states', 
     def __init__(
             self, 
-            data_dir: str='/checkpoint/mazda/data/mit_states', 
             max_allowable_sim_of_classnames: float=0.9,
+            data_dir: str=_MIT_STATES_DATA_ROOT, 
             transform=standard_transform
         ):
         """

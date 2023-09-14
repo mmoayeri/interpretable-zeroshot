@@ -1,6 +1,6 @@
 from main import Config, main
 from metrics import accuracy_metrics, acc_by_class_and_subpop, mark_as_correct
-from constants import _CACHED_DATA_ROOT, _REGIONS, _INCOME_LEVELS
+from constants import _CACHED_DATA_ROOT, _REGIONS, _INCOME_LEVELS, _INPUTS, _METRICS
 from models.llm import LLM, Vicuna
 import pandas as pd
 import os
@@ -23,11 +23,12 @@ def single_pipeline_call(args):
     args_and_outputs['pred_classnames'] = output_dict['pred_classnames']
     args_and_outputs['identifiers'] = output_dict['identifiers']
 
-    keys_to_save = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 
-                    'vlm', 'lamb', 'accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs', 
-                    'average worst subpop accuracy', 'pred_classnames', 'identifiers']
+    # keys_to_save = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 
+    #                 'vlm', 'lamb', 'accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs', 
+    #                 'average worst subpop accuracy', 'pred_classnames', 'identifiers']
 
-    keys_to_save = keys_to_save + _REGIONS + _INCOME_LEVELS
+    # keys_to_save = keys_to_save + _REGIONS + _INCOME_LEVELS
+    keys_to_save = _INPUTS + _METRICS
 
     results_dict = dict({
         key: args_and_outputs[key] for key in keys_to_save
@@ -53,6 +54,7 @@ def cluster_sweep(
     os.makedirs(results_path, exist_ok=True)
     executor = submitit.AutoExecutor(folder=log_folder)
     executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", mem_gb=80, gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+    # executor.update_parameters(timeout_min=180, slurm_partition="cml-dpart", slurm_qos="cml-default", slurm_account="cml-sfeizi", mem_gb=32, gpus_per_node=1, tasks_per_node=1)#, slurm_constraint='volta32gb,ib4')
     jobs = []
     with executor.batch():
         ctr = 0
@@ -67,11 +69,11 @@ def cluster_sweep(
                             else:
                                 curr_predictors = all_predictors
                             for predictor in curr_predictors:
-                                if 'interpol' in predictor or 'new_average' in predictor:
+                                if 'average_top' in predictor or 'knn' in predictor:
                                     curr_all_lambs = all_lambs
                                 # these next two don't affect the run; but makes more sense (lamb=1 corresponds to average_vecs/sims, lamb=0 is more like max of max)
                                 # in either case, we only loop over one value of lamb bc it is never used (you get identical runs w/ diff lambs)
-                                elif 'average' in predictor:
+                                elif predictor == 'average_sims' or predictor == 'average_vecs':
                                     curr_all_lambs = [1]
                                 else:
                                     curr_all_lambs = [0]
@@ -129,11 +131,14 @@ def sweep_chils():
     dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
         'dollarstreet__region', 'geode__region']
     vlms = ['clip_ViT-B/16', 'blip2']
-    all_vlm_prompts = [['a photo of a {}'], ['USE OPENAI IMAGENET TEMPLATES']]
+    # all_vlm_prompts = [['a photo of a {}'], ['USE OPENAI IMAGENET TEMPLATES']]
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
     lambs = [0]
 
     cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, 
-            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='aug29_chils')
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='sep13_chils')
+            # all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='sept5_chils_3')
+            # all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='aug29_chils')
 
 def sweep_dclip():
     # things that are fixed for DCLIP
@@ -145,10 +150,11 @@ def sweep_dclip():
                  'dollarstreet__region', 'geode__region']
     vlms = ['clip_ViT-B/16', 'blip2']
     all_vlm_prompts = [['a photo of a {}'], ['USE OPENAI IMAGENET TEMPLATES']]
-    lambs = [0.5]
+    lambs = [1]
 
     cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, 
-        all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='aug23_dclip_2')
+        all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='sep13_dclip')
+        # all_vlm_prompt_dim_handlers, vlms, lambs, log_dir='aug23_dclip_2')
 
 def sweep_vanilla():
     dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
@@ -161,7 +167,48 @@ def sweep_vanilla():
     all_lambs = [1]
 
     cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, all_vlm_prompt_dim_handlers, vlms, all_lambs,
-        log_dir = 'aug23_pure_vanilla_2')
+        log_dir = 'sep13_pure_vanilla')
+
+def sweep_waffle():
+    dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+    all_attributer_keys = [['vanilla', 'waffle']]
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES'], ['a photo of a {}']]
+    all_predictors = ['average_sims']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
+    all_lambs = [1]
+
+    for i in range(5):
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, all_vlm_prompt_dim_handlers, vlms, all_lambs,
+            log_dir = f'sep13_waffle_{i+1}')
+
+def stack_all_vlm_prompts():
+    dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+    all_attributer_keys = [['vanilla']]
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES'], ['a photo of a {}']]
+    all_predictors = ['average_top_8_sims', 'average_top_4_sims', 'average_top_16_sims']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompt_dim_handlers = ['stack_all']
+    all_lambs = [0, 0.25, 0.5]
+
+    cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, all_vlm_prompt_dim_handlers, vlms, all_lambs,
+        log_dir = 'sep13_stack_vlm_prompts')
+
+
+def our_best():
+    dsetnames = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
+                 'dollarstreet__region', 'geode__region']
+    all_attributer_keys = [['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region', 'llm_co_occurring_objects']]
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
+    all_predictors = ['average_top_8_sims', 'average_top_16_sims']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
+    all_lambs = [0, 0.25]
+
+    cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, all_vlm_prompt_dim_handlers, vlms, all_lambs,
+        log_dir = 'sep14_our_bests')
 
 
 def sweep_all():
@@ -233,17 +280,18 @@ def sweep_attributers():
 
 def sweep_k_and_lamb():
     dsetnames = ['dollarstreet__region', 'geode__region', 'living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9']
-    all_predictors = [f'new_average_top_{k}_sims' for k in [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128]]
+    all_predictors = [f'average_top_{k}_sims' for k in [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128]]
+    all_predictors += [f'average_top_{k}_vecs' for k in [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128]]
     # all_predictors += [f'new_average_top_{k}_vecs' for k in [2,8,16]]
     # all_predictors += [f'new_chils_top_{k}_vecs' for k in [1,4,16]]
     # all_predictors += [f'new_chils_top_{k}_sims' for k in [1,4,16]]
-    all_attributer_keys = [['vanilla', 'income_level', 'country', 'auto_global', 'llm_co_occurring_objects', 'llm_dclip', 'llm_kinds_chils']]
+    all_attributer_keys = [['vanilla', 'income_level', 'country', 'auto_global', 'llm_co_occurring_objects', 'llm_dclip', 'llm_kinds', 'region']]
     vlms = ['blip2', 'clip_ViT-B/16']
     all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
     all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
     lambs = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
     cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, all_predictors, all_vlm_prompt_dim_handlers,
-        vlms, lambs, log_dir='aug29_k_and_lamb_super_fine')
+        vlms, lambs, log_dir='sep14_k_and_lamb_super_fine')
 
 def sweep_knn():
     # dsetnames = ['dollarstreet__region', 'geode__region', 'living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9']
@@ -280,16 +328,24 @@ def sweep_add_in_attributes():
     vlms = ['clip_ViT-B/16', 'blip2']
     all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
     all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
-    lambs = [0,0.5]
+    lambs = [0,0.25]
     all_attributer_keys = [['vanilla'], ['vanilla', 'auto_global'], ['vanilla', 'auto_global', 'income_level'],
-        ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country'], ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states'],
-        ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds'], 
-        ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region'], 
-        ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region', 'llm_co_occurring_objects'], 
-        ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region', 'llm_co_occurring_objects', 'llm_backgrounds']] 
-    predictors = ['average_vecs', 'average_sims', 'chils', 'new_average_top_1_sims', 'new_average_top_16_sims', 'new_average_top_16_vecs', 'knn_sims_16']
+        ['vanilla', 'auto_global', 'income_level', 'region'], ['vanilla', 'auto_global', 'income_level', 'region', 'country'],
+        ['vanilla', 'auto_global', 'income_level', 'region', 'country', 'llm_kinds'], ['vanilla', 'auto_global', 'income_level', 'region', 'country', 'llm_kinds', 'llm_states'],
+        ['vanilla', 'auto_global', 'income_level', 'region', 'country', 'llm_kinds', 'llm_states', 'llm_dclip'],
+        ['vanilla', 'auto_global', 'income_level', 'region', 'country', 'llm_kinds', 'llm_states', 'llm_dclip', 'llm_co_occurring_objects'],
+        ['vanilla', 'auto_global', 'income_level', 'region', 'country', 'llm_kinds', 'llm_states', 'llm_dclip', 'llm_co_occurring_objects', 'llm_backgrounds']]#,
+        # 'llm_dclip', 'country'], ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states'],
+        # ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds'], 
+        # ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region'], 
+        # ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region', 'llm_co_occurring_objects'], 
+        # ['vanilla', 'auto_global', 'income_level', 'llm_dclip', 'country', 'llm_states', 'llm_kinds', 'region', 'llm_co_occurring_objects', 'llm_backgrounds']] 
+    # predictors = ['average_vecs', 'average_sims', 'chils', 'new_average_top_1_sims', 'new_average_top_16_sims', 'new_average_top_16_vecs', 'knn_sims_16']
+    predictors = ['average_sims', 'average_vecs', 'average_top_16_sims', 'average_top_8_sims', 'average_top_8_vecs', 'average_top_16_vecs', 'chils']
     cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, all_vlm_prompt_dim_handlers,
-        vlms, lambs, log_dir='aug28_add_in_attrs')
+        vlms, lambs, log_dir='sep14_add_in_attrs')
+        # vlms, lambs, log_dir='aug28_add_in_attrs')
+
 
 def sweep_add_in_attributes_new():
     dsetnames = ['dollarstreet__region', 'geode__region', 'living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9']
@@ -367,7 +423,10 @@ if __name__ == '__main__':
     # run_sweep()
     # sweep_chils()
     # sweep_dclip()
+    # sweep_waffle()
     # sweep_vanilla()
+    # stack_all_vlm_prompts()
+    # our_best()
     # sweep_geographic()
     # sweep_all()
     # new_llm_queries()
@@ -376,8 +435,8 @@ if __name__ == '__main__':
     # sweep_k_and_lamb()
     # sweep_knn()
     # sweep_preds_w_best_attrs()
-    # sweep_add_in_attributes_new()
+    sweep_add_in_attributes()
     # sweep_attrs_delete_one()
     # sweep_attrs_add_one()
 
-    sweep_try_out_orders()
+    # sweep_try_out_orders()

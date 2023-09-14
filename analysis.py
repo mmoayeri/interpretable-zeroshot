@@ -9,6 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from ast import literal_eval
 
 plt.rcParams.update({
     "font.family": "sans-serif",
@@ -18,7 +19,7 @@ plt.rcParams.update({
 
 """
 First thing: a class to consolidate + process results
-Will be able to...:
+Will be able to... 
     - create a dataframe combining many jsons from a sweep (or multiple)
     - give baseline numbers (e.g. for pure vanilla, dclip, or chils)
     - let us 'slice and dice' ...
@@ -99,13 +100,22 @@ class Analyze:
 
     def load_baseline(self, method: str, no_groundtruth: bool=True):
         if method == 'vanilla':
-            df = self.collect_jsons_for_sweep('aug23_pure_vanilla')
+            # df = self.collect_jsons_for_sweep('aug23_pure_vanilla')
+            df = self.collect_jsons_for_sweep('sep13_pure_vanilla')
         elif method == 'dclip':
-            df = self.collect_jsons_for_sweep('aug23_dclip')
+            # df = self.collect_jsons_for_sweep('aug23_dclip')
+            df = self.collect_jsons_for_sweep('sep13_dclip')
         elif method == 'chils':
-            df = self.collect_jsons_for_sweep('aug29_chils')
+            # df = self.collect_jsons_for_sweep('aug29_chils')
+            df = self.collect_jsons_for_sweep('sep13_chils')
             if no_groundtruth:
                 df = df[df['attributer_keys'] == "['llm_kinds_chils', 'vanilla']"]
+        elif method == 'waffle':
+            all_dfs = []
+            for i in range(1,6):
+                # all_dfs.append(self.collect_jsons_for_sweep(f'sep12_waffle_{i}'))
+                all_dfs.append(self.collect_jsons_for_sweep(f'sep13_waffle_{i}'))
+            df = pd.concat(all_dfs)
         else:
             raise ValueError(f'Baseline {method} not recognized / not yet supported. Run the appropriate sweep and update this function.')
         return df
@@ -119,22 +129,30 @@ class Analyze:
         - we'll take as an argument the vlm_prompts - must be one of "['USE OPENAI IMAGENET TEMPLATES']" or "['a photo of a {}']" or 'mean' in which case we average
         """
         allowable_vlm_prompts = ["['USE OPENAI IMAGENET TEMPLATES']", "['a photo of a {}']", 'mean']
+        # allowable_vlms = ['clip__ViT-B/16', 'blip-2', 'mean']
         assert vlm_prompts in allowable_vlm_prompts, f"vlm_prompts must be in {', '.join(allowable_vlm_prompts)}. You passed: {vlm_prompts}"
+        # assert vlm in allowable_vlm_prompts, f"vlm must be in {', '.join(allowable_vlms)}. You passed {vlm}"
 
-        baselines_dict = dict({k:[] for k in ['dsetname', 'method']+_METRICS})
-        for method in ['vanilla', 'dclip', 'chils']:
+        baselines_dict = dict({k:[] for k in ['dsetname', 'method', 'vlm']+_METRICS})
+        for method in ['vanilla', 'dclip', 'chils', 'waffle']:
             df = self.load_baseline(method)
 
             if vlm_prompts != 'mean':
                 df = df[df['vlm_prompts'] == vlm_prompts]
+            
+            # if vlm != 'both':
+            #     # df = df[df.vlm == vlm]
 
-            for dsetname, sub_df in df.groupby('dsetname'):
+            # df = df.groupby(['vlm', 'dsetname']).mean('accuracy').reset_index()
+
+            for (vlm, dsetname), sub_df in df.groupby(['vlm', 'dsetname']):
                 # let's only keep metrics and avg out remaining dimensions (just VLM, and perhaps vlm_prompt if vlm_prompt arg to this fn was 'mean')
                 sub_df = sub_df[_METRICS].mean()
                 for metric in _METRICS:
                     baselines_dict[metric].append(sub_df[metric])
                 baselines_dict['dsetname'].append(dsetname)
                 baselines_dict['method'].append(method)
+                baselines_dict['vlm'].append(vlm)
         
         baselines_df = pd.DataFrame.from_dict(baselines_dict)
         return baselines_df
@@ -225,7 +243,7 @@ class Analyze:
 
     def k_vs_lamb(
         self, 
-        log_dir: str = 'aug28_k_and_lamb', 
+        log_dir: str = 'aug29_k_and_lamb_super_fine', 
         nrows: int = 2,
         save_fname: str = 'k_vs_lamb'
     ):
@@ -243,14 +261,109 @@ class Analyze:
             axs[i % nrows, i // nrows].set_title(metric.title())
         f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')
 
+    def our_best_method(self) -> pd.DataFrame:
+        # df = self.collect_jsons_for_sweep('aug28_add_in_attrs')
+        df = pd.read_csv('mazda_analysis/experiment_dfs/aug28_add_in_attrs.csv')
+        best_attr_keys =  "['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', " + \
+                            "'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']"
+        ours = df[(df.predictor == 'new_average_top_16_sims') & (df.attributer_keys == best_attr_keys) & (df.lamb == 0)]
+        return ours
+
+    def beautify_dsetname(self, dsetname: str) -> str:
+        return dsetname.split('_full')[0].replace('_', ' ').title().replace('Mit', 'MIT').replace('0.8', '(Coarse)').replace('0.9','(Fine)').replace('Thresh ', '')
+
+    def beautify_methodname(self, methodname: str) -> str:
+        renamer = dict({'vanilla':'Vanilla', 'dclip': 'DCLIP', 'chils': 'CHiLS', 'ours':'Ours'})
+        return renamer[methodname]
+
+    def acc_by_method_table(self):
+        summary = self.baselines_summarize_stats()
+        ours = self.our_best_method()
+        summary.loc['ours'] = ours.mean('accuracy')[_IMPORTANT_METRICS]
+        table_str = summary.to_latex(float_format="{:.2f}".format)
+        with open('for_paper/acc_by_method.txt', 'w') as f:
+            f.write(table_str)
+        print(table_str)
+
+    def tables_method_by_dset_per_metric(self, save_root: str = 'for_paper/tables/by_method_and_dset/'):
+        os.makedirs(save_root, exist_ok=True)
+        baselines = self.baseline_numbers()
+        ours = self.our_best_method()
+        ours['method'] = ['ours'] * len(ours)
+        ours_with_base = pd.concat([baselines, ours])
+        grouped = ours_with_base.groupby(['method', 'dsetname']).mean('accuracy')
+        for metric in _IMPORTANT_METRICS:
+            df = grouped[metric].reset_index().pivot(index='method', columns='dsetname')[metric]
+            df = df.reindex(columns=['living17', 'entity13', 'entity30', 'nonliving26', 'dollarstreet__region', 
+                                     'geode__region', 'mit_states_0.8', 'mit_states_0.9'])
+            df = df.reindex(['vanilla', 'dclip', 'waffle', 'chils', 'ours'])
+            df = df.rename(columns=self.beautify_dsetname, index=self.beautify_methodname)
+            table_str = df.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()#float_format="{:.2f}".format)
+            with open(f'for_paper/tables/by_method_and_dset/{metric}.txt', 'w') as f:
+                f.write(table_str)
+            
+    def by_group(self, attr_keys):
+        groups = []
+        attr_keys = literal_eval(attr_keys)
+        for key in attr_keys:
+            if key == 'auto_global':
+                groups.append('Global')
+            elif key == 'income_level':
+                groups.append('Geographic')
+            elif key == 'llm_kinds':
+                groups.append('LLM (core)')
+            elif key == 'llm_backgrounds':
+                groups.append('LLM (spurious)')
+        return groups  
+
     def adding_in_attributes(
         self,
-        log_dir: str = 'aug29_add_in_attrs_new_order',
-        predictors_with_lamb_to_show : List[str] = ['average_sims_1.0', 'chils_0.0', 'max_of_max_0.0', 'new_average_top_8_sims_0.0'],
-        metrics: List[str] = ['accuracy', 'worst class accuracy']   
+        df_csv_path: str = 'mazda_analysis/experiment_dfs/aug31_new_orders_0.csv'
+        # log_dir: str = 'aug29_add_in_attrs_new_order',
+        # predictors_with_lamb_to_show : List[str] = ['average_sims_1.0', 'chils_0.0', 'max_of_max_0.0', 'new_average_top_8_sims_0.0'],
+        # metrics: List[str] = ['accuracy', 'worst class accuracy']   
     ):
 
-        add_in_attrs = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
-        add_in_attrs_base = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
-        df = pd.concat(add_in_attrs, add_in_attrs_base)
+        # add_in_attrs = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
+        # add_in_attrs_base = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
+        # df = pd.concat(add_in_attrs, add_in_attrs_base)
+
+        df = pd.read_csv(df_csv_path)
         
+        df['attribute types'] = df.attributer_keys.apply(lambda x: self.by_group(x))
+        attributers_by_len = dict({len(v):v for v in df['attribute types']})
+        attributers_by_len = dict(sorted(attributers_by_len.items(), key = lambda x:x[0]))
+        attributers_in_order = []
+        for i, g in attributers_by_len.items():
+            ith_g = [x for x in g if x not in attributers_in_order]
+            attributers_in_order.append(ith_g)
+
+        ith_attribute = ['Classname\nOnly', '+ '+attributers_by_len[1][0]]
+        ith_attribute += ['+ '+[x for x in attributers_by_len[i+1] if x not in attributers_by_len[i]][0] for i in range(1, len(attributers_by_len))]
+
+        df['num_groups'] = df['attribute types'].apply(lambda x:len(x))
+        grouped = df.groupby(['predictor', 'lamb', 'num_groups']).mean('accuracy').reset_index()
+        grouped['predictor_with_lamb'] = [f"{p}_{l}" for p,l in zip(list(grouped.predictor), list(grouped.lamb))]
+
+        metrics_to_show = ['accuracy', 'worst class accuracy', 'poor', 'Africa']
+        n_rows = int(np.ceil(len(metrics_to_show) // 2))
+        f, axs = plt.subplots(n_rows,len(metrics_to_show) // 2, figsize=(15,10))
+        for i, metric in enumerate(metrics_to_show):
+            ax = axs[i // n_rows, i % n_rows]
+            sns.lineplot(data=grouped, x="num_groups", y=metric, hue="predictor_with_lamb", ax=ax, zorder=6)
+            ax.set_facecolor((0.93,0.93,0.93))
+            ax.grid(color='white', zorder=0)
+            ax.set_xticks(range(1, len(ith_attribute)+1))
+            ax.set_xticklabels(ith_attribute, rotation=30, fontsize=14)
+            ax.set_ylabel(metric.title(), fontsize=20)
+            ax.set_xlabel('Adding in Attribute Types Sequentially', fontsize=20)
+
+
+        save_path = 'plots/attr_orders/'+df_csv_path.split('_')[-1].replace('.csv', '.jpg')
+        f.tight_layout(); f.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.close()
+
+if __name__ == '__main__':
+    analyzer = Analyze()
+    for i in range(23):
+        analyzer.adding_in_attributes(f'mazda_analysis/experiment_dfs/aug31_new_orders_{i}.csv')
