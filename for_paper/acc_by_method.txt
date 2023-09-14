@@ -1,0 +1,12 @@
+\begin{tabular}{lrrrrrrrr}
+\toprule
+ & accuracy & poor & Africa & average worst subpop accuracy & avg worst 20th percentile class accs & avg worst 10th percentile class accs & avg worst 5th percentile class accs & worst class accuracy \\
+method &  &  &  &  &  &  &  &  \\
+\midrule
+chils & 73.02 & 27.73 & 60.94 & 51.45 & 45.13 & 36.45 & 31.22 & 26.68 \\
+dclip & 72.04 & 27.51 & 60.75 & 49.49 & 44.77 & 36.91 & 29.69 & 26.24 \\
+vanilla & 72.16 & 27.97 & 60.65 & 49.85 & 44.19 & 36.32 & 29.18 & 24.62 \\
+waffle & 72.34 & 28.84 & 61.69 & 49.77 & 44.41 & 36.73 & 30.13 & 26.23 \\
+ours & 73.68 & 30.11 & 62.40 & 51.65 & 46.61 & 38.71 & 31.70 & 26.76 \\
+\bottomrule
+\end{tabular}
