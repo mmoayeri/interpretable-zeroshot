@@ -10,8 +10,8 @@ import os
 import torch
 from tqdm import tqdm
 from lavis.models import load_model_and_preprocess
-from constants import _DSTREET_DATA_ROOT, _IMAGENET_DATA_ROOT, _MIT_STATES_DATA_ROOT, \
-    _META_DSTREET_DATA_ROOT, _META_IMAGENET_DATA_ROOT, _META_MIT_STATES_DATA_ROOT
+from constants import _DSTREET_DATA_ROOT, _IMAGENET_DATA_ROOT, _MIT_STATES_DATA_ROOT#, \
+    # _META_DSTREET_DATA_ROOT, _META_IMAGENET_DATA_ROOT, _META_MIT_STATES_DATA_ROOT
 
 
 class VLM(ABC):
@@ -67,8 +67,8 @@ class VLM(ABC):
             image_embeddings, identifiers = [
                 dat[x] for x in ["image_embeddings", "identifiers"]
             ]
-            identifiers = [img_path.replace(_META_IMAGENET_DATA_ROOT, _IMAGENET_DATA_ROOT).replace(_META_DSTREET_DATA_ROOT, 
-                            _DSTREET_DATA_ROOT).replace(_META_MIT_STATES_DATA_ROOT, _MIT_STATES_DATA_ROOT) for img_path in identifiers]
+            # identifiers = [img_path.replace(_META_IMAGENET_DATA_ROOT, _IMAGENET_DATA_ROOT).replace(_META_DSTREET_DATA_ROOT, 
+            #                 _DSTREET_DATA_ROOT).replace(_META_MIT_STATES_DATA_ROOT, _MIT_STATES_DATA_ROOT) for img_path in identifiers]
         else:
             dset.transform = self.get_image_transform()
             loader = torch.utils.data.DataLoader(dset, batch_size=self.batch_size, num_workers=4)

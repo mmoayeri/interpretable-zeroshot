@@ -97,7 +97,8 @@ class Config(object):
 def test_run_full_pipeline():
 
     args_as_dict = dict({
-        'dsetname': 'dollarstreet__region',#'nonliving26', # other options: see _ALL_DSETNAMES in constants.py
+        # 'dsetname': 'dollarstreet__region',#
+        'dsetname':'nonliving26', # other options: see _ALL_DSETNAMES in constants.py
         'vlm': 'blip2',#'clip_ViT-B/16', # other option: 'blip2'
         'llm': 'vicuna-13b-v1.5',
         'attributer_keys': ['vanilla', 'llm_kinds'],# 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],

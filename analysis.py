@@ -100,13 +100,22 @@ class Analyze:
 
     def load_baseline(self, method: str, no_groundtruth: bool=True):
         if method == 'vanilla':
-            df = self.collect_jsons_for_sweep('aug23_pure_vanilla')
+            # df = self.collect_jsons_for_sweep('aug23_pure_vanilla')
+            df = self.collect_jsons_for_sweep('sep13_pure_vanilla')
         elif method == 'dclip':
-            df = self.collect_jsons_for_sweep('aug23_dclip')
+            # df = self.collect_jsons_for_sweep('aug23_dclip')
+            df = self.collect_jsons_for_sweep('sep13_dclip')
         elif method == 'chils':
-            df = self.collect_jsons_for_sweep('aug29_chils')
+            # df = self.collect_jsons_for_sweep('aug29_chils')
+            df = self.collect_jsons_for_sweep('sep13_chils')
             if no_groundtruth:
                 df = df[df['attributer_keys'] == "['llm_kinds_chils', 'vanilla']"]
+        elif method == 'waffle':
+            all_dfs = []
+            for i in range(1,6):
+                # all_dfs.append(self.collect_jsons_for_sweep(f'sep12_waffle_{i}'))
+                all_dfs.append(self.collect_jsons_for_sweep(f'sep13_waffle_{i}'))
+            df = pd.concat(all_dfs)
         else:
             raise ValueError(f'Baseline {method} not recognized / not yet supported. Run the appropriate sweep and update this function.')
         return df
@@ -120,22 +129,30 @@ class Analyze:
         - we'll take as an argument the vlm_prompts - must be one of "['USE OPENAI IMAGENET TEMPLATES']" or "['a photo of a {}']" or 'mean' in which case we average
         """
         allowable_vlm_prompts = ["['USE OPENAI IMAGENET TEMPLATES']", "['a photo of a {}']", 'mean']
+        # allowable_vlms = ['clip__ViT-B/16', 'blip-2', 'mean']
         assert vlm_prompts in allowable_vlm_prompts, f"vlm_prompts must be in {', '.join(allowable_vlm_prompts)}. You passed: {vlm_prompts}"
+        # assert vlm in allowable_vlm_prompts, f"vlm must be in {', '.join(allowable_vlms)}. You passed {vlm}"
 
-        baselines_dict = dict({k:[] for k in ['dsetname', 'method']+_METRICS})
-        for method in ['vanilla', 'dclip', 'chils']:
+        baselines_dict = dict({k:[] for k in ['dsetname', 'method', 'vlm']+_METRICS})
+        for method in ['vanilla', 'dclip', 'chils', 'waffle']:
             df = self.load_baseline(method)
 
             if vlm_prompts != 'mean':
                 df = df[df['vlm_prompts'] == vlm_prompts]
+            
+            # if vlm != 'both':
+            #     # df = df[df.vlm == vlm]
 
-            for dsetname, sub_df in df.groupby('dsetname'):
+            # df = df.groupby(['vlm', 'dsetname']).mean('accuracy').reset_index()
+
+            for (vlm, dsetname), sub_df in df.groupby(['vlm', 'dsetname']):
                 # let's only keep metrics and avg out remaining dimensions (just VLM, and perhaps vlm_prompt if vlm_prompt arg to this fn was 'mean')
                 sub_df = sub_df[_METRICS].mean()
                 for metric in _METRICS:
                     baselines_dict[metric].append(sub_df[metric])
                 baselines_dict['dsetname'].append(dsetname)
                 baselines_dict['method'].append(method)
+                baselines_dict['vlm'].append(vlm)
         
         baselines_df = pd.DataFrame.from_dict(baselines_dict)
         return baselines_df
@@ -261,6 +278,7 @@ class Analyze:
 
     def acc_by_method_table(self):
         summary = self.baselines_summarize_stats()
+        ours = self.our_best_method()
         summary.loc['ours'] = ours.mean('accuracy')[_IMPORTANT_METRICS]
         table_str = summary.to_latex(float_format="{:.2f}".format)
         with open('for_paper/acc_by_method.txt', 'w') as f:
@@ -278,7 +296,7 @@ class Analyze:
             df = grouped[metric].reset_index().pivot(index='method', columns='dsetname')[metric]
             df = df.reindex(columns=['living17', 'entity13', 'entity30', 'nonliving26', 'dollarstreet__region', 
                                      'geode__region', 'mit_states_0.8', 'mit_states_0.9'])
-            df = df.reindex(['vanilla', 'dclip', 'chils', 'ours'])
+            df = df.reindex(['vanilla', 'dclip', 'waffle', 'chils', 'ours'])
             df = df.rename(columns=self.beautify_dsetname, index=self.beautify_methodname)
             table_str = df.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()#float_format="{:.2f}".format)
             with open(f'for_paper/tables/by_method_and_dset/{metric}.txt', 'w') as f:
