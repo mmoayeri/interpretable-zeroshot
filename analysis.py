@@ -632,7 +632,13 @@ class NonGeographicRowPerDatasetTable(NonGeographicDatasetsTable):
         table_latex = table_latex.rename(
             columns={"average worst subpop accuracy": "Worst Subpopulation"}
         )
-        table_latex["dsetname"] = table_latex["dsetname"].replace("mit_states_0.8", "MIT States (Coarse)").replace("mit_states_0.9", "MIT States (Fine)")
+        table_latex = table_latex.replace("clip_ViT-B/16", "CLIP")
+        table_latex = table_latex.replace("blip2", "BLIP-2")
+        table_latex["dsetname"] = (
+            table_latex["dsetname"]
+            .replace("mit_states_0.8", "MIT States (Coarse)")
+            .replace("mit_states_0.9", "MIT States (Fine)")
+        )
         table_latex = table_latex.rename(columns={"accuracy": "Accuracy"})
         # table_latex.index = table_latex.index.map(lambda x: (x[0], x[1].upper()))
         return table_latex.to_latex(
