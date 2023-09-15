@@ -529,10 +529,8 @@ class GeographicShiftTable:
         table_latex = table_latex.replace("geode__region", "GeoDE")
         table_latex = table_latex.replace("clip_ViT-B/16", "CLIP")
         table_latex = table_latex.replace("blip2", "BLIP-2")
-        table_latex= table_latex.rename(
-            columns={
-                "avg worst 20th percentile class accs": "worst 20\% of classes"
-            }
+        table_latex = table_latex.rename(
+            columns={"avg worst 20th percentile class accs": "worst 20\% of classes"}
         )
         return table_latex.to_latex(
             index=False,
@@ -542,9 +540,121 @@ class GeographicShiftTable:
         )
 
 
+class NonGeographicDatasetsTable:
+    METHOD_ORDER = ["vanilla", "dclip", "waffle", "chils", "ours"]
+    VLM_ORDER = ["clip_ViT-B/16", "blip2"]
+
+    def __init__(
+        self,
+        baselines: pd.DataFrame,
+        ours: pd.DataFrame = None,
+        vlm: str = "clip_ViT-B/16",
+    ):
+        """Makes a table containing baseline performance"""
+        self.df = baselines
+        self.vlm = vlm
+        if ours is not None:
+            self.df = pd.concat([baselines, ours], ignore_index=True)
+        self.table = self.make_table()
+
+    def make_table(self) -> pd.DataFrame:
+        table = self.df[
+            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region"])
+        ]
+        table["dataset_type"] = table["dsetname"].apply(
+            lambda x: "States" if "mit_states" in x else "Hierarchical"
+        )
+        # set method to categorical with custom order
+        table["method"] = pd.Categorical(table["method"], self.METHOD_ORDER)
+        # filter vlm
+        table = table[table["vlm"] == self.vlm]
+        table = table.sort_values(by=["vlm", "dsetname", "method"])[
+            [
+                "dataset_type",
+                "method",
+                "accuracy",
+                "average worst subpop accuracy",
+                "avg worst 20th percentile class accs",
+            ]
+        ]
+        table = self.average_over_dataset_types(table)
+        return table
+
+    def average_over_dataset_types(self, table: pd.DataFrame) -> pd.DataFrame:
+        return table.groupby(["dataset_type", "method"]).mean()
+
+    def to_latex(self) -> str:
+        table_latex = self.table
+        table_latex = table_latex.rename(
+            columns={"avg worst 20th percentile class accs": "Worst 20\% of classes"}
+        )
+        table_latex = table_latex.rename(
+            columns={"average worst subpop accuracy": "Worst Subpopulation"}
+        )
+        table_latex = table_latex.rename(columns={"accuracy": "Accuracy"})
+        table_latex.index = table_latex.index.map(lambda x: (x[0], x[1].upper()))
+        return table_latex.to_latex(
+            index=True,
+            float_format="%.2f",
+            column_format="llccc",
+            formatters={"dsetname": lambda x: x.replace("_", " ")},
+            caption="Zero-shot classification on datasets with known variation types.",
+        )
+
+
+class NonGeographicRowPerDatasetTable(NonGeographicDatasetsTable):
+    def make_table(self) -> pd.DataFrame:
+        table = self.df[
+            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region"])
+        ]
+        table["dataset_type"] = table["dsetname"].apply(
+            lambda x: "States" if "mit_states" in x else "Hierarchical"
+        )
+        # set method to categorical with custom order
+        table["method"] = pd.Categorical(table["method"], self.METHOD_ORDER)
+        table = table.sort_values(by=["vlm", "dsetname", "method"])[
+            [
+                "dsetname",
+                "vlm",
+                "method",
+                "accuracy",
+                "average worst subpop accuracy",
+                "avg worst 20th percentile class accs",
+            ]
+        ]
+        return table
+
+    def to_latex(self) -> str:
+        table_latex = self.table
+        table_latex = table_latex.rename(
+            columns={"avg worst 20th percentile class accs": "Worst 20\% of classes"}
+        )
+        table_latex = table_latex.rename(
+            columns={"average worst subpop accuracy": "Worst Subpopulation"}
+        )
+        table_latex["dsetname"] = table_latex["dsetname"].replace("mit_states_0.8", "MIT States (Coarse)").replace("mit_states_0.9", "MIT States (Fine)")
+        table_latex = table_latex.rename(columns={"accuracy": "Accuracy"})
+        # table_latex.index = table_latex.index.map(lambda x: (x[0], x[1].upper()))
+        return table_latex.to_latex(
+            index=False,
+            float_format="%.2f",
+            # column_format="llccc",
+            formatters={"dsetname": lambda x: x.replace("_", " ")},
+            caption="Zero-shot classification on datasets with known variation types.",
+        )
+
+
 if __name__ == "__main__":
     analyzer = Analyze()
     for i in range(23):
         analyzer.adding_in_attributes(
             f"mazda_analysis/experiment_dfs/aug31_new_orders_{i}.csv"
         )
+
+    # generate table
+    # analyzer = analysis.Analyze()
+    # baseline_numbers = analyzer.baseline_numbers()
+    # our_numbers = analyzer.our_best_method()
+
+    # geographic table
+    # table = analysis.GeographicShiftTable(baseline_numbers, our_numbers)
