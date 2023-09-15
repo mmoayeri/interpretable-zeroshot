@@ -487,7 +487,7 @@ class Analyze:
         plt.close()
 
 
-class GeographicShiftTable:
+class BaseTable:
     REGIONS = ["Asia", "Europe", "Americas", "Africa", "SouthEastAsia", "WestAsia"]
     INCOMES = ["poor", "lower middle class", "upper middle class", "rich"]
     METHOD_ORDER = ["vanilla", "dclip", "waffle", "chils", "ours"]
@@ -500,6 +500,65 @@ class GeographicShiftTable:
             self.df = pd.concat([baselines, ours], ignore_index=True)
         self.df["worst region"] = self.df[self.REGIONS].min(axis=1, numeric_only=True)
         self.df["worst income"] = self.df[self.INCOMES].min(axis=1, numeric_only=True)
+
+
+class SummaryTable(BaseTable):
+    def __init__(
+        self,
+        baselines: pd.DataFrame,
+        ours: pd.DataFrame = None,
+        vlm: str = "clip_ViT-B/16",
+    ):
+        """Makes a table containing baseline performance"""
+        super().__init__(baselines, ours=ours)
+        self.vlm = vlm
+        self.table = self.make_table()
+
+    def make_table(self) -> pd.DataFrame:
+        table = self.df
+        # set method to categorical with custom order
+        table["method"] = pd.Categorical(table["method"], self.METHOD_ORDER)
+        table["vlm"] = pd.Categorical(table["vlm"], self.VLM_ORDER)
+        table = table[table["vlm"] == self.vlm]
+        table = table.sort_values(by=["vlm", "dsetname", "method"])[
+            [
+                "method",
+                "accuracy",
+                "worst region",
+                "worst income",
+                "average worst subpop accuracy",
+                "avg worst 20th percentile class accs",
+            ]
+        ]
+        table = self.average_over_datasets(table)
+        return table
+
+    def average_over_datasets(self, table):
+        return table.groupby("method").mean()
+
+    def to_latex(self) -> str:
+        table_latex = self.table
+        table_latex = table_latex.rename(
+            columns={
+                "avg worst 20th percentile class accs": "Worst 20\% of classes",
+                "average worst subpop accuracy": "Worst Subpopulation",
+                "worst income": "Worst Income",
+                "worst region": "Worst Region",
+                "accuracy": "Accuracy",
+            }
+        )
+        return table_latex.to_latex(
+            index=True,
+            float_format="%.2f",
+            formatters={"dsetname": lambda x: x.replace("_", " ")},
+            caption="Zero-shot classification across hierarchical, states, and geographic datasets.",
+        )
+
+
+class GeographicShiftTable(BaseTable):
+    def __init__(self, baselines: pd.DataFrame, ours: pd.DataFrame = None):
+        """Makes a table containing baseline performance"""
+        super().__init__(baselines, ours=ours)
         self.table = self.make_table()
 
     def make_table(self) -> pd.DataFrame:
@@ -540,8 +599,7 @@ class GeographicShiftTable:
         )
 
 
-class NonGeographicDatasetsTable:
-    METHOD_ORDER = ["vanilla", "dclip", "waffle", "chils", "ours"]
+class NonGeographicDatasetsTable(BaseTable):
     VLM_ORDER = ["clip_ViT-B/16", "blip2"]
 
     def __init__(
@@ -551,10 +609,8 @@ class NonGeographicDatasetsTable:
         vlm: str = "clip_ViT-B/16",
     ):
         """Makes a table containing baseline performance"""
-        self.df = baselines
+        super().__init__(baselines, ours=ours)
         self.vlm = vlm
-        if ours is not None:
-            self.df = pd.concat([baselines, ours], ignore_index=True)
         self.table = self.make_table()
 
     def make_table(self) -> pd.DataFrame:
