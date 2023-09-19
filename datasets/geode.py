@@ -6,7 +6,7 @@ import numpy as np
 from torchvision import transforms
 from datasets.base_dataset import ClassificationDset
 from typing import List, Dict
-
+from constants import _GEODE_INFO_FPATH
 
 ### Thanks a million to Megan who provided great starter code!
 ### Link here: https://github.com/fairinternal/Interplay_of_Model_Properties/blob/main/datasets/geode.py
@@ -16,7 +16,7 @@ class GeodeDataset(ClassificationDset):
     def __init__(
         self,
         attr_col: str="region",
-        og_meta_data_path: str = "/checkpoint/meganrichards/datasets/geode/metadata_test_1k_final.csv",
+        og_meta_data_path: str = _GEODE_INFO_FPATH,
         data_dir: str = "/checkpoint/meganrichards/datasets/geode/images/",
         transform=transforms.Compose(
             [

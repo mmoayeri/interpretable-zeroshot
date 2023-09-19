@@ -7,7 +7,7 @@ import pandas as pd
 import glob
 import os
 import json
-from constants import _IMAGENET_CLASSNAMES, _CACHED_DATA_ROOT
+from constants import _IMAGENET_CLASSNAMES, _CACHED_DATA_ROOT, _IMAGENET_DATA_ROOT, _BREEDS_INFO_FPATH, _IMAGENET_LABELS_TXT
 from datasets.base_dataset import ClassificationDset
 from typing import List, Dict
 
@@ -26,18 +26,21 @@ class Breeds(ClassificationDset):
 
     def __init__(
         self, 
-        dsetname='living17', 
-        transform=standard_transform, 
-        data_dir='/datasets01/imagenet_full_size/061417/', 
-        inet_split='val', 
-        breeds_info_path='/private/home/mazda/multiple_cls_vecs/datasets/breeds_info.json'
+        dsetname: str = 'living17', 
+        transform = standard_transform, 
+        data_dir: str = _IMAGENET_DATA_ROOT, 
+        inet_split: str = 'val', 
+        breeds_info_path : str = _BREEDS_INFO_FPATH
     ):
         ''' data_dir should correspond to your ImageNet path, as Living17 is a subset of it. '''
-        self.dsetname = dsetname
-        
         self.imagenet_dir = data_dir
         self.inet_split = inet_split
-        with open(os.path.join(self.imagenet_dir, 'labels.txt')) as f:
+        self.dsetname = dsetname
+        if self.inet_split == 'train':
+            self.dsetname += '_train'
+
+        # with open(os.path.join(self.imagenet_dir, 'labels.txt')) as f:
+        with open(_IMAGENET_LABELS_TXT) as f:
             inet_wnid_and_labels = f.readlines()
         self.inet_wnids = [wnid_and_label.split(',')[0] for wnid_and_label in inet_wnid_and_labels]
 

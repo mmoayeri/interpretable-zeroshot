@@ -6,6 +6,7 @@ from torch.utils.data import Dataset
 from ast import literal_eval
 import numpy as np
 from datasets.base_dataset import ClassificationDset
+from constants import _DSTREET_DATA_ROOT, _DSTREET_INFO_FPATH
 
 class DollarstreetDataset(ClassificationDset):
     has_gt_attrs = True
@@ -13,8 +14,8 @@ class DollarstreetDataset(ClassificationDset):
     def __init__(
         self,
         attr_col = "region",
-        og_meta_data_path: str = "/checkpoint/mazda/data/dollarstreet/dollarstreet_full_metadata.csv",
-        data_dir: str = "/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/",
+        og_meta_data_path: str = _DSTREET_INFO_FPATH,
+        data_dir: str = _DSTREET_DATA_ROOT,
         transform=transforms.Compose(
             [
                 transforms.Resize(256),

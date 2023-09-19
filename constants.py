@@ -1,15 +1,34 @@
+### These will need to be updated per user. TODO: put breeds_info.json into repo so users get it upon cloning
+# e.g. these are path's mazda uses while on UMD's cluster
+# _CACHED_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/'
+# _IMAGENET_DATA_ROOT = '/fs/cml-datasets/ImageNet/ILSVRC2012/'
+# _DSTREET_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/dstreet_to_keep/'
+# _MIT_STATES_DATA_ROOT = '/cmlscratch/mmoayeri/meta_work/mit_states/'
+# _BREEDS_INFO_FPATH = '/cmlscratch/mmoayeri/meta_work/meta_files/breeds_info.json'
+# _IMAGENET_LABELS_TXT = '/cmlscratch/mmoayeri/meta_work/meta_files/labels.txt'
+# _DSTREET_INFO_FPATH = '/cmlscratch/mmoayeri/meta_work/meta_files/dollarstreet_full_metadata.csv'
+# _GEODE_INFO_FPATH = "/cmlscratch/mmoayeri/meta_work/meta_files/metadata_test_1k_final.csv"
+
+### These are the versions that should be used when operating on devfair
 _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
+_IMAGENET_DATA_ROOT = '/datasets01/imagenet_full_size/061417/'
+_DSTREET_DATA_ROOT = '/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/'
+_MIT_STATES_DATA_ROOT = '/checkpoint/mazda/data/mit_states'
+_BREEDS_INFO_FPATH = '/private/home/mazda/multiple_cls_vecs/datasets/breeds_info.json'
+_IMAGENET_LABELS_TXT = '/datasets01/imagenet_full_size/061417/labels.txt'
+_DSTREET_INFO_FPATH = '/checkpoint/mazda/data/dollarstreet/dollarstreet_full_metadata.csv'
+_GEODE_INFO_FPATH = "/checkpoint/meganrichards/datasets/geode/metadata_test_1k_final.csv"
 
 # These are the regions and income_levels we have gt annotations for (in DStreet and Geode)
 _REGIONS = ['Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 'SouthEastAsia', 'WestAsia']
 _INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
 
 # List of numeric metrics
-_METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs',
-       'average worst subpop accuracy', 'Asia', 'Europe', 'Americas', 'Africa', 'EastAsia', 
-       'SouthEastAsia', 'WestAsia', 'poor', 'lower middle class', 'upper middle class', 'rich']
-_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 
-                      'avg worst 20th percentile class accs', 'worst class accuracy']
+_METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs', 'avg worst 10th percentile class accs', 
+            'avg worst 5th percentile class accs', 'avg worst 1th percentile class accs','average worst subpop accuracy']
+_METRICS += _REGIONS + _INCOME_LEVELS
+_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 'avg worst 20th percentile class accs', #'worst class accuracy']
+                      'avg worst 10th percentile class accs', 'avg worst 5th percentile class accs', 'worst class accuracy']
 _INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
 
 

@@ -1,0 +1,9 @@
+\begin{tabular}{lrrrrrrrr}
+dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet  Region & Geode  Region & MIT States (Coarse) & MIT States (Fine) \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 63.50 & 29.75 & 15.38 & 24.75 & 3.41 & 35.48 & 24.32 & 0.33 \\
+DCLIP & \textbf{74.50} & 26.80 & 15.50 & 15.25 & 3.80 & \textbf{48.97} & 25.13 & 0.00 \\
+Waffle & 68.35 & 24.63 & \textbf{17.02} & 25.30 & 3.41 & 45.99 & 25.11 & 0.00 \\
+CHiLS & 67.50 & 25.60 & 12.75 & \textbf{34.50} & \textbf{4.64} & 36.79 & \textbf{31.64} & 0.00 \\
+Ours & 68.25 & \textbf{31.25} & 14.50 & 27.75 & 4.22 & 42.08 & 26.39 & \textbf{0.67} \\
+\end{tabular}
