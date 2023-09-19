@@ -300,17 +300,20 @@ class Analyze:
         save_fname: str = "k_vs_lamb",
     ):
         df = self.collect_jsons_for_sweep(log_dir)
-        df["k"] = df["predictor"].apply(lambda x: int(x.split("_")[-2]))
-        df2 = df.groupby(["k", "lamb"]).mean("accuracy").reset_index()
-        pivoted = df2.pivot(index="k", columns="lamb", values="accuracy")
-        sns.heatmap(pivoted, annot=True, fmt=".4f")
+        df = df[df.predictor.isin([f'average_top_{k}_sims' for k in [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128]])]
+        df['k'] = df['predictor'].apply(lambda x: int(x.split('_')[-2]))
+        df2 = df.groupby(['k', 'lamb']).mean('accuracy').reset_index()
+        pivoted = df2.pivot(index="k", columns='lamb', values='accuracy')
+        sns.heatmap(pivoted, annot=True, fmt='.4f')
 
-        ncols = int(np.ceil(len(_IMPORTANT_METRICS / nrows)))
-        f, axs = plt.subplots(nrows, ncols, figsize=(6 * ncols, 5 * nrows))
+        ncols = int(np.ceil(len(_IMPORTANT_METRICS) // nrows))
+        f, axs = plt.subplots(nrows, ncols, figsize=(12*ncols, 10*nrows))
+
         for i, metric in enumerate(_IMPORTANT_METRICS):
             pivoted = df2.pivot(index="k", columns="lamb", values=metric)
             sns.heatmap(pivoted, annot=True, fmt=".4f", ax=axs[i % nrows, i // nrows])
             axs[i % nrows, i // nrows].set_title(metric.title())
+
         f.tight_layout()
         f.savefig(f"plots/{save_fname}.jpg", dpi=300, bbox_inches="tight")
 
@@ -419,8 +422,8 @@ class Analyze:
 
     def adding_in_attributes(
         self,
-        df_csv_path: str = "mazda_analysis/experiment_dfs/aug31_new_orders_0.csv"
-        # log_dir: str = 'aug29_add_in_attrs_new_order',
+        # df_csv_path: str = 'mazda_analysis/experiment_dfs/aug31_new_orders_0.csv'
+        log_dir: str = 'aug29_add_in_attrs_new_order',
         # predictors_with_lamb_to_show : List[str] = ['average_sims_1.0', 'chils_0.0', 'max_of_max_0.0', 'new_average_top_8_sims_0.0'],
         # metrics: List[str] = ['accuracy', 'worst class accuracy']
     ):
@@ -428,7 +431,8 @@ class Analyze:
         # add_in_attrs_base = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
         # df = pd.concat(add_in_attrs, add_in_attrs_base)
 
-        df = pd.read_csv(df_csv_path)
+        # df = pd.read_csv(df_csv_path)
+        df = self.collect_jsons_for_sweep(log_dir)
 
         df["attribute types"] = df.attributer_keys.apply(lambda x: self.by_group(x))
         attributers_by_len = dict({len(v): v for v in df["attribute types"]})
