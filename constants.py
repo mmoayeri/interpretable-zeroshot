@@ -25,9 +25,11 @@ _INCOME_LEVELS = ['poor', 'lower middle class', 'upper middle class', 'rich']
 
 # List of numeric metrics
 _METRICS = ['accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs', 'avg worst 10th percentile class accs', 
-            'avg worst 5th percentile class accs', 'avg worst 1th percentile class accs','average worst subpop accuracy']
+            'avg worst 5th percentile class accs', 'avg worst 1th percentile class accs', 'average worst subpop accuracy',
+            'avg worst 1th percentile subpop accs', 'avg worst 5th percentile subpop accs', 
+            'avg worst 10th percentile subpop accs', 'avg worst 20th percentile subpop accs']
 _METRICS += _REGIONS + _INCOME_LEVELS
-_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 'avg worst 20th percentile class accs', #'worst class accuracy']
+_IMPORTANT_METRICS = ['accuracy', 'poor', 'Africa', 'average worst subpop accuracy', 'avg worst 20th percentile class accs', 
                       'avg worst 10th percentile class accs', 'avg worst 5th percentile class accs', 'worst class accuracy']
 _INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 'vlm', 'lamb']
 

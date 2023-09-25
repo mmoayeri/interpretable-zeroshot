@@ -606,7 +606,11 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
             raise ValueError(
                 f"Query key {query_key} for LLM based attributer (with key {key}) not recognized."
             )
-        attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())
+
+        cache_fname = dset.get_dsetname()
+        if 'dollarstreet' in cache_fname:
+            cache_fname = 'dollarstreet_full'
+        attributer = LLMBased(llm=llm, llm_query=query, cache_fname=cache_fname)
     else:
         raise ValueError(f"Attributer key {key} not recognized.")
     return attributer

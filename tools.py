@@ -19,6 +19,7 @@ from analysis import *
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from scipy.stats import pearsonr
+import clip
 
 def collect_results(log_dir: str) -> pd.DataFrame:
     log_dir_path = os.path.join(_CACHED_DATA_ROOT, 'experiments', log_dir, 'results', '*.json')    
@@ -535,6 +536,54 @@ def plot_ap_gain_hists():
     f.savefig('plots/ap_gains.jpg', dpi=300, bbox_inches='tight')
 
 
+def obtain_zero_shot_head(clip_model, dset, prompt_template='a photo of a {}'):
+    text_prompts = torch.cat([clip.tokenize(prompt_template.format(clsname)) for clsname in dset.classnames]).cuda()
+    clip_model = clip_model.cuda()
+    text_ftrs = clip_model.encode_text(text_prompts)
+    text_ftrs /= text_ftrs.norm(dim=-1, keepdim=True)
+    return text_ftrs
+
+def record_problem_classes(dsetname='mit_states', thresh=0.85):
+    '''
+    Some classes are arguably overlapping. We'll remove ones that have CLIP text similarity above 0.9.
+    Specifically, for any pair of classes w/ CLIP similarity > 0.9, we remove the class with higher average
+    CLIP similarity to all classes, as these are likely more broad and potentially overlapping w. others. 
+    '''
+    ### Compute similarity of text embeddings for each class name
+    if dsetname == 'mit_states':
+        dset = MITStates(max_allowable_sim_of_classnames=1)
+    elif dsetname == 'dollarstreet':
+        dset = DollarstreetDataset()
+    n_classes = len(dset.classnames)
+    clip_model, _ = clip.load('ViT-B/16')
+    head = obtain_zero_shot_head(clip_model, dset)
+    sims = (head @ head.T)
+    sims = sims - torch.eye(sims.shape[0]).cuda() * torch.diag(sims)
+    sorted_sims = torch.argsort(-1*sims.flatten())
+
+    # For each pair w/ sim > thresh, add broader class to problematic class list
+    problem_classes = []
+    for i in tqdm(sorted_sims):
+        if sims[i // n_classes, i % n_classes] <= thresh:
+            break
+        # if one of the pair is already added, we don't need to add a new one
+        if (i//n_classes not in problem_classes) and (i%n_classes not in problem_classes):
+            c1, c2 = [dset.classnames[j] for j in [i//n_classes, i%n_classes]]
+            # now we need to remove one of two colliding classes; we'll remove the one most similar to everyone else
+            if sims[i//n_classes].mean() > sims[i%n_classes].mean():
+                problem_classes.append(i//n_classes)
+                kept_c = c2
+            else:
+                problem_classes.append(i%n_classes)
+                kept_c = c1
+
+            print(f'Collision between {c1} and {c2}. Kept {kept_c}')
+    # we'll need to filter by name, so let's save by name
+    print(f'{len(problem_classes)} problematic classes found out of {n_classes}.')
+    problem_class_names = [dset.classnames[i] for i in problem_classes]
+    cache_data(f'/checkpoint/mazda/data/meta_files/{dsetname}_problem_classes_thresh_{thresh}.pkl', problem_class_names)
+
+
 if __name__ == '__main__':
     # executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'aps_by_class_and_subpop/')
     # executor.update_parameters(timeout_min=180, slurm_partition="cml-dpart", slurm_qos="cml-default", slurm_account="cml-sfeizi", mem_gb=32, gpus_per_node=1, tasks_per_node=1)
@@ -563,4 +612,7 @@ if __name__ == '__main__':
     # compare_to_linear_probe()
     # plot_comparison_to_linear_probe()
 
-    plot_diversity_scattters()
+    # plot_diversity_scattters()
+    for thresh in [0.7, 0.8, 0.85, 0.9]:
+    # for thresh in [0.5]:
+        record_problem_classes('dollarstreet', thresh=thresh)

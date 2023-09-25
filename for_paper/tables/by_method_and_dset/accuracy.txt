@@ -1,9 +1,14 @@
-\begin{tabular}{lrrrrrrrr}
-dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet  Region & Geode  Region & MIT States (Coarse) & MIT States (Fine) \\
-method &  &  &  &  &  &  &  &  \\
-Vanilla & 92.96 & 68.22 & 68.43 & 77.27 & 42.73 & 90.34 & 78.24 & 59.07 \\
-DCLIP & 93.35 & 68.64 & 68.49 & 76.32 & 42.14 & 91.14 & 77.80 & 58.40 \\
-Waffle & 92.94 & 69.30 & 68.74 & 76.94 & 42.61 & 91.32 & 78.31 & 58.53 \\
-CHiLS & 93.65 & 69.33 & 70.69 & \textbf{79.55} & 42.73 & 90.85 & 78.83 & 58.55 \\
-Ours & \textbf{93.71} & \textbf{71.42} & \textbf{70.76} & 79.41 & \textbf{43.68} & \textbf{91.60} & \textbf{79.40} & \textbf{59.88} \\
+\begin{table}
+\caption{accuracy}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
+\midrule
+NaN & 68.22 & 68.43 & 77.27 & 67.34 & 51.21 & 90.34 & 78.24 & 59.07 \\
+NaN & 68.64 & 68.49 & 76.32 & 66.82 & 49.80 & 91.14 & 77.80 & 55.65 \\
+NaN & 68.95 & 68.66 & 77.13 & 67.73 & 51.22 & 91.34 & 78.31 & 58.47 \\
+NaN & 69.33 & 70.69 & 79.55 & 68.32 & 51.62 & 90.85 & 78.83 & 58.55 \\
+NaN & 71.47 & 70.59 & 79.25 & 69.21 & 52.33 & 91.58 & 79.33 & 59.90 \\
+\bottomrule
 \end{tabular}
+\end{table}

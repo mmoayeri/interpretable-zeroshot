@@ -1,0 +1,14 @@
+\begin{table}
+\caption{avg worst 10th percentile subpop accs}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
+\midrule
+NaN & 5.35 & 5.67 & 18.90 & 24.16 & 6.10 & 57.47 & 23.27 & 4.95 \\
+NaN & 5.77 & 5.04 & 15.20 & 20.07 & 6.08 & 61.38 & 21.71 & 3.74 \\
+NaN & 4.96 & 6.56 & 17.00 & 20.36 & 5.82 & 63.27 & 23.27 & 4.26 \\
+NaN & 5.96 & 6.21 & 21.50 & 23.86 & 7.40 & 57.62 & 24.93 & 4.88 \\
+NaN & 6.88 & 6.88 & 22.00 & 26.45 & 8.62 & 61.26 & 24.72 & 5.53 \\
+\bottomrule
+\end{tabular}
+\end{table}

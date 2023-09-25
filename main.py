@@ -14,8 +14,10 @@ def main(args):
     if args.dsetname in ["living17", "entity30", "entity13", "nonliving26"]:
         dset = Breeds(dsetname=args.dsetname)
     elif "dollarstreet" in args.dsetname:
-        attr = args.dsetname.split("__")[-1]
-        dset = DollarstreetDataset(attr_col=attr)
+        split_dsetname = args.dsetname.split('_thresh_')
+        thresh = float(split_dsetname[1]) if len(split_dsetname) > 1 else 1 
+        attr = split_dsetname[0].split("__")[-1]
+        dset = DollarstreetDataset(attr_col=attr, max_allowable_sim_of_classnames=thresh)
     elif "geode" in args.dsetname:
         attr = args.dsetname.split("__")[-1]
         dset = GeodeDataset(attr_col=attr)
@@ -121,19 +123,23 @@ class Config(object):
 def test_run_full_pipeline():
     args_as_dict = dict(
         {
-            "dsetname": "nonliving26",  # other options: see _ALL_DSETNAMES in constants.py
-            "vlm": "blip2",  #'clip_ViT-B/16', # other option: 'blip2'
+            "dsetname": "dollarstreet__income_level_thresh_0.9",#"nonliving26",  # other options: see _ALL_DSETNAMES in constants.py
+            "vlm": "clip_ViT-B/16", # other option: 'blip2'
             "llm": "vicuna-13b-v1.5",
             "attributer_keys": [
                 "vanilla",
+                # "waffle"],#,
                 "llm_kinds",
-            ],  # 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
+                'llm_dclip', 'llm_states', 'auto_global', 'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds', 'country'],
+            # ],  # 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
             "vlm_prompt_dim_handler": "average_and_norm_then_stack",  #'stack_all',
             "vlm_prompts": [
                 "USE OPENAI IMAGENET TEMPLATES"
+                # "a photo of a {}."
             ],  # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
-            # 'predictor': 'average_top_8_sims',
-            "predictor": "chils",
+            'predictor': 'average_top_8_sims',
+            # 'predictor': 'average_sims',
+            # "predictor": "chils",
             "lamb": 0.0,  # this parameter only goes into effect when using average_top_k_{sims or vecs}
         }
     )

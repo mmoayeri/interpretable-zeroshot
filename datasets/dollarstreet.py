@@ -7,6 +7,7 @@ from ast import literal_eval
 import numpy as np
 from datasets.base_dataset import ClassificationDset
 from constants import _DSTREET_DATA_ROOT, _DSTREET_INFO_FPATH
+from my_utils import load_cached_data
 
 class DollarstreetDataset(ClassificationDset):
     has_gt_attrs = True
@@ -16,6 +17,7 @@ class DollarstreetDataset(ClassificationDset):
         attr_col = "region",
         og_meta_data_path: str = _DSTREET_INFO_FPATH,
         data_dir: str = _DSTREET_DATA_ROOT,
+        max_allowable_sim_of_classnames: float = 1,
         transform=transforms.Compose(
             [
                 transforms.Resize(256),
@@ -28,6 +30,14 @@ class DollarstreetDataset(ClassificationDset):
         self.og_meta_data = pd.read_csv(og_meta_data_path, index_col=0).reset_index()
         self.data_dir = data_dir
         self.transform = transform
+
+        if max_allowable_sim_of_classnames < 1:
+            disallowed_classes_path = f'/checkpoint/mazda/data/meta_files/dollarstreet_problem_classes_thresh_{max_allowable_sim_of_classnames}.pkl'
+            assert os.path.exists(disallowed_classes_path), 'For now, only use 0.8 or 0.9 for max_allowable_sim_of_classnames. If you absolutely need to try something else, ping Mazda. He will run record_mit_states_problem_classes (a simple fn, it just lives somewhere else right now .. too low priority to fix atm).'
+            self.disallowed_classes = load_cached_data(disallowed_classes_path)
+            self.dsetname = f'dollarstreet_thresh_{max_allowable_sim_of_classnames}'
+        else:
+            self.disallowed_classes = []
 
         ### self.collect_instances is responsible for creating self.data_df and classnames list
         self.classnames = self.collect_instances()
@@ -48,12 +58,18 @@ class DollarstreetDataset(ClassificationDset):
         for i, row in self.og_meta_data.iterrows():
             img_rel_path, curr_valid_classnames_str = [row[x] for x in ['imageRelPath', 'topics']]
             img_path = os.path.join(self.data_dir, img_rel_path)
-            img_paths.append(img_path)
-
+            
             # The og_meta_data dataframe saves the curr_valid_classnames list as a string
             curr_valid_classnames = literal_eval(curr_valid_classnames_str)
+            # let's take out classes that have too much overlap
+            curr_valid_classnames = [c for c in curr_valid_classnames if c not in self.disallowed_classes]
+            if len(curr_valid_classnames) == 0:
+                # we do not include entries that whose only labels are disallowed classes
+                continue
             # The next line appends a list of valid_classnames for our current sample to the running list
             valid_classnames.append(curr_valid_classnames)
+
+            img_paths.append(img_path)
 
             for attr_list, attr_name in zip([regions, country_names, income_groups], 
                                             ['region', 'country_name', 'income_level']):

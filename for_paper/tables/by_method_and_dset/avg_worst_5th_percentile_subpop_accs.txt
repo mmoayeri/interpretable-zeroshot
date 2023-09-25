@@ -1,0 +1,14 @@
+\begin{table}
+\caption{avg worst 5th percentile subpop accs}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
+\midrule
+NaN & 2.15 & 2.42 & 9.00 & 19.59 & 2.92 & 45.53 & 12.79 & 1.69 \\
+NaN & 1.62 & 2.00 & 5.00 & 13.36 & 2.60 & 52.66 & 11.52 & 0.92 \\
+NaN & 1.73 & 2.79 & 7.78 & 15.99 & 2.33 & 53.51 & 14.17 & 1.13 \\
+NaN & 2.62 & 2.75 & 10.80 & 18.28 & 4.16 & 45.85 & 15.76 & 1.64 \\
+NaN & 2.92 & 3.17 & 10.80 & 22.15 & 5.17 & 50.53 & 14.43 & 2.01 \\
+\bottomrule
+\end{tabular}
+\end{table}
