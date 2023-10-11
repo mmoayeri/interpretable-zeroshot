@@ -55,12 +55,13 @@ class Attributer(ABC):
 
     def subpop_captions_by_class(self, classnames: List[str]) -> Dict[str, List[str]]:
         attrs_by_class = self.infer_attrs(classnames)
-        return dict(
+        subpop_captions_by_class = dict(
             {
                 classname: [self.caption_subpop(classname, attr) for attr in attrs]
                 for classname, attrs in attrs_by_class.items()
             }
         )
+        return subpop_captions_by_class
 
 
 def infer_attrs(
@@ -81,11 +82,11 @@ def infer_attrs(
     in the above example, vlm_prompts would be ['a photo of a {}', 'a drawing of a {}']
     """
     subpops_by_class = dict({classname: [] for classname in classnames})
-    # subpop_to_attributer = dict()
     for attributer in attributers:
         curr_subpops_by_class = attributer.subpop_captions_by_class(classnames)
         for classname, subpops in curr_subpops_by_class.items():
             subpops_by_class[classname].extend(subpops)
+
 
     subpops_by_class = dict(
         {
@@ -606,7 +607,11 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
             raise ValueError(
                 f"Query key {query_key} for LLM based attributer (with key {key}) not recognized."
             )
-        attributer = LLMBased(llm=llm, llm_query=query, cache_fname=dset.get_dsetname())
+
+        cache_fname = dset.get_dsetname()
+        if 'dollarstreet' in cache_fname:
+            cache_fname = 'dollarstreet_full'
+        attributer = LLMBased(llm=llm, llm_query=query, cache_fname=cache_fname)
     else:
         raise ValueError(f"Attributer key {key} not recognized.")
     return attributer

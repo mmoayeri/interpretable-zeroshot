@@ -1,0 +1,15 @@
+\begin{table}
+\caption{worst class accuracy}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+dsetname & Living17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) \\
+method &  &  &  &  &  &  &  &  \\
+\midrule
+Vanilla & 63.50 & 29.75 & 15.38 & 24.75 & 3.17 & 35.48 & 24.32 & 0.33 \\
+DCLIP & 74.50 & 26.80 & 15.50 & 15.25 & 2.87 & 48.97 & 25.13 & 0.00 \\
+Waffle & 67.38 & 23.03 & 16.75 & 23.88 & 2.23 & 48.50 & 25.64 & 0.03 \\
+CHiLS & 67.50 & 25.60 & 12.75 & 34.50 & 7.31 & 36.79 & 31.64 & 0.00 \\
+Ours & 68.25 & 31.10 & 15.00 & 27.25 & 7.37 & 42.48 & 25.63 & 0.67 \\
+\bottomrule
+\end{tabular}
+\end{table}

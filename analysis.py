@@ -1,6 +1,6 @@
-from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS
+from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS, _ALL_DSETNAMES
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from glob import glob
 import os
 import json
@@ -16,6 +16,7 @@ plt.rcParams.update(
         "font.family": "sans-serif",
         "font.sans-serif": "cmss10",
         "axes.formatter.use_mathtext": "True",
+        "mathtext.fontset": "stixsans"
     }
 )
 
@@ -158,11 +159,6 @@ class Analyze:
             if vlm_prompts != "mean":
                 df = df[df["vlm_prompts"] == vlm_prompts]
 
-            # if vlm != 'both':
-            #     # df = df[df.vlm == vlm]
-
-            # df = df.groupby(['vlm', 'dsetname']).mean('accuracy').reset_index()
-
             for (vlm, dsetname), sub_df in df.groupby(["vlm", "dsetname"]):
                 # let's only keep metrics and avg out remaining dimensions (just VLM, and perhaps vlm_prompt if vlm_prompt arg to this fn was 'mean')
                 sub_df = sub_df[_METRICS].mean()
@@ -198,93 +194,6 @@ class Analyze:
             num_to_show
         )[inputs_to_show + metrics_to_show]
 
-    def general_plotter(
-        self,
-        results_df: pd.DataFrame,
-        col_to_compare: str,
-        save_fname: str,
-        col_to_compare_vals: List[str] = None,
-        metrics: List[str] = _METRICS,
-        n_subplots_per_row: int = 5,
-    ):
-        """
-        col_to_compare is something like method, predictor, attributer_keys. Importantly, we need the
-        columns of results_df to include (1) dsetname (2) each of metrics (3) col_to_compare
-
-        col_to_compare_vals is just in case you want the vals to be in a specific order (e.g. baselines first)
-                            or if you don't care about nor wish to visualize certain values.
-
-        This guy is gonna make two plots:
-        1. Show everything: subplot per metric * set of bars per dset * bar per col_to_compare
-        2. Show averages: Subplot per metric * bar per col_to_compare showing average val over dsetss
-        """
-        n_subplots_per_row = min(len(metrics), n_subplots_per_row)
-        n_rows = int(np.ceil(len(metrics) / n_subplots_per_row))
-        f, axs = plt.subplots(
-            n_rows, n_subplots_per_row, figsize=(7 * n_subplots_per_row, 4 * n_rows)
-        )
-        avg_f, avg_axs = plt.subplots(
-            n_rows, n_subplots_per_row, figsize=(5 * n_subplots_per_row, 4 * n_rows)
-        )
-        if n_rows == 1:
-            axs = [axs]
-            avg_axs = [avg_axs]
-
-        # we'll have a color for each of the things we want to compare
-        if col_to_compare_vals is None:
-            col_to_compare_vals = list(set(results_df[col_to_compare]))
-        else:
-            results_df = results_df[
-                results_df[col_to_compare].isin(col_to_compare_vals)
-            ]
-        cmap = mpl.colormaps["plasma"]
-        colors = [
-            cmap((i + 1) / len(col_to_compare_vals))
-            for i in range(len(col_to_compare_vals))
-        ]
-
-        results_df["dsetname"] = results_df["dsetname"].apply(
-            lambda x: x.split("__")[0].title()
-        )
-        avg_df = results_df.groupby(col_to_compare).mean("dsetname").reset_index()
-
-        for i, metric in enumerate(metrics):
-            ax, avg_ax = [
-                axs_set[i // n_subplots_per_row][i % n_subplots_per_row]
-                for axs_set in [axs, avg_axs]
-            ]
-            sns.barplot(
-                data=results_df,
-                x="dsetname",
-                y=metric,
-                hue=col_to_compare,
-                ax=ax,
-                palette=colors,
-                hue_order=col_to_compare_vals,
-            )
-
-            sns.barplot(
-                data=avg_df,
-                x=col_to_compare,
-                y=metric,
-                ax=avg_ax,
-                palette=colors,
-                order=col_to_compare_vals,
-            )
-
-            for curr_ax in [ax, avg_ax]:
-                for container in curr_ax.containers:
-                    curr_ax.bar_label(container, fmt="%.2f", fontsize=8, rotation=90)
-                curr_ax.tick_params(axis="x", rotation=90)
-                curr_ax.set_xlabel(None)
-                curr_ax.spines[["right", "top"]].set_visible(False)
-            ax.legend().remove()  # loc='lower right')
-
-        f.tight_layout()
-        f.savefig(f"plots/{save_fname}.jpg", dpi=300, bbox_inches="tight")
-        avg_f.tight_layout()
-        avg_f.savefig(f"plots/{save_fname}_avg.jpg", dpi=300, bbox_inches="tight")
-
     def baselines_summarize_stats(self, important_only: bool = True) -> pd.DataFrame:
         # with important_only, we add focus on fairness metrics + overall acc
         baselines = self.baseline_numbers()
@@ -295,27 +204,48 @@ class Analyze:
 
     def k_vs_lamb(
         self,
-        log_dir: str = "aug29_k_and_lamb_super_fine",
-        nrows: int = 2,
-        save_fname: str = "k_vs_lamb",
+        log_dir: str = "sep21_k_and_lamb_super_fine",
+        percentile: int = 5
     ):
         df = self.collect_jsons_for_sweep(log_dir)
-        df = df[df.predictor.isin([f'average_top_{k}_sims' for k in [1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 32, 64, 128]])]
+        # ideally we should change second condition to be isin(_DSETNAMES), but this is the same
+        df2 = df[(df.sims_or_vecs == 'sims') & (df.dsetname != 'dollarstreet__income_level_thresh_0.8')]
+        df['k'] = df2['predictor'].apply(lambda x: int(x.split('_')[-2]))
+        df2 = df2.groupby(['k', 'lamb']).mean('accuracy').reset_index()
+        f, axs = plt.subplots(1,2, figsize=(10,4))
+        for param, ax in zip(['k', 'lamb'], axs):
+            ax.set_facecolor((0.93,0.93,0.93))
+            ax.grid(color='white', zorder=0)
+            grouped = df2.groupby([param]).mean('accuracy').reset_index()
+            grouped = grouped.rename(columns={'lamb':'$\lambda$', 'k':'$k$'})
+            if param == 'k':
+                sns.scatterplot(grouped, y="accuracy", x=f"avg worst {percentile}th percentile class accs", hue="$k$", hue_norm=LogNorm(), ax=ax, legend="auto", zorder=6, s=80)
+            else:
+                sns.scatterplot(grouped, y="accuracy", x=f"avg worst {percentile}th percentile class accs", hue="$\lambda$", ax=ax, legend="auto", zorder=6, s=80)
+            ax.set_xlabel(f'Accuracy on Worst {percentile}% of Classes', fontsize=14)
+            ax.set_ylabel('Overall Accuracy', fontsize=14)
+        f.tight_layout(); f.savefig(f'plots/tradeoff/k_and_lamb_{percentile}_percentile.jpg', dpi=300)
+
+    def sims_vs_vecs(
+        self,
+        log_dir: str = "sep21_k_and_lamb_super_fine",
+        percentile: int = 5
+    ):
+        df = self.collect_jsons_for_sweep(log_dir)
+        df = df[df.dsetname != 'dollarstreet__income_level_thresh_0.8']
+        df['sims_or_vecs'] = df.predictor.apply(lambda x: 'vecs' if 'vecs' in x else 'sims')
         df['k'] = df['predictor'].apply(lambda x: int(x.split('_')[-2]))
-        df2 = df.groupby(['k', 'lamb']).mean('accuracy').reset_index()
-        pivoted = df2.pivot(index="k", columns='lamb', values='accuracy')
-        sns.heatmap(pivoted, annot=True, fmt='.4f')
+        f, ax = plt.subplots(1,1, figsize=(6,4))
+        df = df.rename(columns={'lamb':'$\lambda$', 'sims_or_vecs':'Sims or Vecs'})
+        grouped = df.groupby(['$\lambda$', 'Sims or Vecs']).mean('accuracy')
+        sns.scatterplot(data = grouped, y="accuracy", x=f"avg worst {percentile}th percentile class accs", style="Sims or Vecs", hue='$\lambda$', ax=ax, zorder=6)
+        ax.set_facecolor((0.93,0.93,0.93))
+        ax.grid(color='white', zorder=0)
+        ax.set_xlabel(f'Accuracy on Worst {percentile}% of Classes', fontsize=14)
+        ax.set_ylabel('Overall Accuracy', fontsize=14)
+        ax.legend(bbox_to_anchor=(1.02,0.85))
+        f.tight_layout(); f.savefig('plots/tradeoff/sims_or_vecs.jpg', dpi=300)
 
-        ncols = int(np.ceil(len(_IMPORTANT_METRICS) // nrows))
-        f, axs = plt.subplots(nrows, ncols, figsize=(12*ncols, 10*nrows))
-
-        for i, metric in enumerate(_IMPORTANT_METRICS):
-            pivoted = df2.pivot(index="k", columns="lamb", values=metric)
-            sns.heatmap(pivoted, annot=True, fmt=".4f", ax=axs[i % nrows, i // nrows])
-            axs[i % nrows, i // nrows].set_title(metric.title())
-
-        f.tight_layout()
-        f.savefig(f"plots/{save_fname}.jpg", dpi=300, bbox_inches="tight")
 
     def our_best_method(self) -> pd.DataFrame:
         df = self.collect_jsons_for_sweep("sep14_our_bests_2")
@@ -332,15 +262,30 @@ class Analyze:
         ours["method"] = ["ours"] * len(ours)
         return ours
 
+    def baselines_and_ours(self, our_k:int = 16, our_lamb:float = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+        dirs = glob('/checkpoint/mazda/mmmd_results/experiments/sep20_all_*')
+        all_df = []
+        for d in dirs:
+            df = self.collect_jsons_for_sweep(d.split('/')[-1])
+            df['method'] = [d.split('/')[-1].split('_')[-2]]*len(df)
+            all_df.append(df)
+        df = pd.concat(all_df)
+        baselines = df[df.method != 'ours']
+        ours = df[(df.method == 'ours') & (df.predictor == f'average_top_{our_k}_sims') & (df.lamb == our_lamb)]
+        return baselines, ours
+
+
     def beautify_dsetname(self, dsetname: str) -> str:
         return (
             dsetname.split("_full")[0]
+            .split("__")[0]
             .replace("_", " ")
             .title()
             .replace("Mit", "MIT")
             .replace("0.8", "(Coarse)")
             .replace("0.9", "(Fine)")
             .replace("Thresh ", "")
+            .replace('Dollarstreet (Fine)', 'Dollarstreet')
         )
 
     def beautify_methodname(self, methodname: str) -> str:
@@ -355,27 +300,54 @@ class Analyze:
         )
         return renamer[methodname]
 
-    def acc_by_method_table(self):
-        summary = self.baselines_summarize_stats()
-        ours = self.our_best_method()
+    def acc_by_method_table(self, vlm: str = 'both'):
+        # summary = self.baselines_summarize_stats()
+        # ours = self.our_best_method()
+        baselines, ours = self.baselines_and_ours()
+        ours_with_base = pd.concat([baselines, ours])
+        if vlm != 'both':
+            assert vlm in ['clip_ViT-B/16', 'blip-2'], f"Unrecognized vlm: {vlm}"
+            ours_with_base = ours_with_base[ours_with_base.vlm == vlm]
+
+        ours_with_base = ours_with_base[ours_with_base.dsetname.isin(_ALL_DSETNAMES)]
+
+        metrics_to_show = [
+            "accuracy", "average worst subpop accuracy", "avg worst 20th percentile class accs", "avg worst 20th percentile subpop accs", 
+            "avg worst 10th percentile class accs", "avg worst 10th percentile subpop accs", 
+        ]
+
+        summary = ours_with_base.groupby(['method']).mean('accuracy')[metrics_to_show]
+        summary = summary.reindex(["vanilla", "dclip", "waffle", "chils", "ours"])
+        summary = summary.rename(index=self.beautify_methodname)
+
         # Idk why i need to do this groupby 'lamb', but do not fear, there is only one lamb value
-        ours = ours.groupby("method").mean("accuracy")[_IMPORTANT_METRICS]
-        summary = pd.concat([summary, ours])
-        table_str = summary.to_latex(float_format="{:.2f}".format)
-        # with open('for_paper/acc_by_method.txt', 'w') as f:
-        #     f.write(table_str)
+        # ours = ours.groupby("method").mean("accuracy")[_IMPORTANT_METRICS]
+        # summary = pd.concat([summary, ours])
+        table_str = summary.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()#float_format="{:.2f}".format)
+        # save_str = f'for_paper/acc_by_method/{vlm}.txt'
+        with open('for_paper/acc_by_method.txt', 'w') as f:
+            f.write(table_str)
         print(table_str)
 
     def tables_method_by_dset_per_metric(
         self, save_root: str = "for_paper/tables/by_method_and_dset/"
     ):
         os.makedirs(save_root, exist_ok=True)
-        baselines = self.baseline_numbers()
-        ours = self.our_best_method()
-        # ours['method'] = ['ours'] * len(ours)
+        baselines, ours = self.baselines_and_ours()
         ours_with_base = pd.concat([baselines, ours])
         grouped = ours_with_base.groupby(["method", "dsetname"]).mean("accuracy")
-        for metric in _IMPORTANT_METRICS:
+        metrics_to_show = [
+            "accuracy",
+            "average worst subpop accuracy",
+            "avg worst 20th percentile class accs",
+            "avg worst 20th percentile subpop accs",
+            "avg worst 10th percentile class accs",
+            "avg worst 10th percentile subpop accs",
+            # "avg worst 5th percentile class accs",
+            # "avg worst 5th percentile subpop accs",
+            # "worst class accuracy"
+        ]
+        for metric in metrics_to_show:#_IMPORTANT_METRICS:
             df = (
                 grouped[metric]
                 .reset_index()
@@ -383,28 +355,36 @@ class Analyze:
             )
             df = df.reindex(
                 columns=[
-                    "living17",
-                    "entity13",
-                    "entity30",
-                    "nonliving26",
-                    "dollarstreet__region",
+                    # "method",
+                    "dollarstreet__income_level_thresh_0.9",
                     "geode__region",
                     "mit_states_0.8",
                     "mit_states_0.9",
+                    "entity13",
+                    "entity30",
+                    "nonliving26",
+                    "living17",
+                    # "dollarstreet__income_level_thresh_0.8",
                 ]
             )
             df = df.reindex(["vanilla", "dclip", "waffle", "chils", "ours"])
             df = df.rename(
                 columns=self.beautify_dsetname, index=self.beautify_methodname
             )
-            table_str = (
-                df.style.highlight_max(axis=0, props="textbf:--rwrap;")
-                .format(precision=2)
-                .to_latex()
-            )  # float_format="{:.2f}".format)
+            print(df)
+
+            # df = df.style.highlight_max(axis=0, props="textbf:--rwrap;")
+
+            table_str = df.to_latex(
+                index=True,#False,
+                float_format="%.2f",
+                caption=metric
+            )
+
+            table_str = df.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()
             print(table_str)
-            # with open(f'{save_root}/{metric}.txt', 'w') as f:
-            #     f.write(table_str)
+            with open(f'{save_root}/{metric.replace(" ", "_")}.txt', 'w') as f:
+                f.write(table_str)
 
     def by_group(self, attr_keys):
         groups = []
@@ -420,18 +400,87 @@ class Analyze:
                 groups.append("LLM (spurious)")
         return groups
 
-    def adding_in_attributes(
+    def add_in_attrs(
+        self,
+        log_dir: str = 'sep21_add_in_attrs',
+        metrics_to_show: List[str] = ["accuracy", "avg worst 10th percentile class accs"],
+        save_fname: str = 'adding_in_attrs.jpg'
+    ):
+        df = self.collect_jsons_for_sweep(log_dir)
+        # TODO: update _DSETNAMES so this becomes isin(_DSETNAMES)
+        df = df[df.dsetname.isin(['dollarstreet__income_level_thresh_0.9', 'geode__region', 'living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9'])]
+        df['num_attributers'] = df.attributer_keys.apply(lambda x:len(literal_eval(x)))
+        grouped = df.groupby(['predictor', 'lamb', 'num_attributers']).mean('accuracy').reset_index()
+        grouped['predictor_with_lamb'] = [f"{p}_{l}" for p,l in zip(list(grouped.predictor), list(grouped.lamb))]
+
+        all_attributer_keys = [literal_eval(x) for x in df.attributer_keys]
+        attributers_by_len = dict()
+        for attributers in all_attributer_keys:
+            num_attributers = len(attributers)
+            if num_attributers in attributers_by_len:
+                assert attributers == attributers_by_len[num_attributers], "Some funny business. In this analysis, only one attributer should be added at a time."
+            else:
+                attributers_by_len[num_attributers] = attributers
+
+        nums = sorted(list(attributers_by_len))
+        attributers_in_order = [[attributers_by_len[1][0]]]
+        for i in range(min(nums)+1, max(nums)+1):
+            ith_attributer = [x for x in attributers_by_len[i] if x not in attributers_in_order]
+            attributers_in_order.append(ith_attributer)
+
+        ith_attribute = [[x for x in attributers_by_len[i+1] if x not in attributers_by_len[i]][0] for i in range(1, len(attributers_by_len))]
+        ith_attribute = ['+ ' + x.replace('_', ' ').title().replace('Llm ', '').replace('Dclip', 'Descriptors').replace('Co Occurring', 'Co-occurring\n') for x in ith_attribute]
+        ith_attribute = ['Classname Only'] + ith_attribute
+
+        filtered = grouped[grouped.predictor_with_lamb.isin(['average_sims_1.0', 'chils_0.0', 'average_top_16_sims_0.0'])]
+        filtered['Predictor'] = filtered.predictor_with_lamb.apply(lambda x: ' '.join(x.split('_')[:-1]).title())
+
+        # let's add in the first point (classname only; sweep only does this w predictor=average sims)
+        row = filtered[filtered.num_attributers == 1]
+        filtered2 = filtered
+        for predictor in ['Chils', 'Average Top 16 Sims']:
+            row2 = row
+            row2['Predictor'] = predictor
+            filtered2 = pd.concat((filtered2, row2))
+
+        filtered2['Consolidation Scheme'] = filtered2.Predictor.map({'Average Top 16 Sims': 'Ours', 'Average Sims': 'Average', 'Chils':'CHiLS'})
+        
+        n_rows = int(np.ceil(len(metrics_to_show) / 2))
+        f, axs = plt.subplots(n_rows, 2, figsize=(9, 3.5*n_rows))
+        if n_rows == 1:
+            axs = [axs]
+        for i, metric in enumerate(metrics_to_show):
+            ax = axs[i // 2][i % 2]
+            # sns.lineplot(filtered2, x="num_attributers", y=metric, hue="Predictor", ax=ax, zorder=6, hue_order=['Average Top 16 Sims', 'Average Sims', 'Chils'])
+            sns.lineplot(filtered2, x="num_attributers", y=metric, hue="Consolidation Scheme", ax=ax, zorder=6, hue_order=['Ours', 'Average', 'CHiLS'])
+            ax.set_facecolor((0.93,0.93,0.93))
+            ax.grid(color='white', zorder=0)
+            ax.set_xticks(range(1, len(ith_attribute)+1))
+            ax.set_xticklabels(ith_attribute, rotation=40, fontsize=9)
+            metric = metric.title()
+            if 'Avg Worst' in metric:
+                words = metric.split(' ')
+                percentile = int(words[2][:-2])
+                acc_type = words[-2]
+                acc_type += ('es' if acc_type == 'Class' else 's')
+                metric = f'Worst {percentile}% of {acc_type}'
+            ax.set_ylabel(metric, fontsize=16)
+            ax.set_xlabel('Adding in Attribute Types Sequentially', fontsize=16)
+        f.tight_layout(); f.savefig(f'plots/{save_fname}.jpg', dpi=300, bbox_inches='tight')  
+
+    def add_in_attrs_appendix(self):
+        self.add_in_attrs(
+            metrics_to_show=['avg worst 20th percentile class accs', 'avg worst 20th percentile subpop accs'],
+            save_fname = "adding_in_attrs_appendix"
+        )
+
+    def adding_in_attributes_try_many_orders(
         self,
         # df_csv_path: str = 'mazda_analysis/experiment_dfs/aug31_new_orders_0.csv'
         log_dir: str = 'aug29_add_in_attrs_new_order',
         # predictors_with_lamb_to_show : List[str] = ['average_sims_1.0', 'chils_0.0', 'max_of_max_0.0', 'new_average_top_8_sims_0.0'],
         # metrics: List[str] = ['accuracy', 'worst class accuracy']
     ):
-        # add_in_attrs = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
-        # add_in_attrs_base = analyzer.collect_jsons_for_sweep('aug29_add_in_attrs_new_order')
-        # df = pd.concat(add_in_attrs, add_in_attrs_base)
-
-        # df = pd.read_csv(df_csv_path)
         df = self.collect_jsons_for_sweep(log_dir)
 
         df["attribute types"] = df.attributer_keys.apply(lambda x: self.by_group(x))
@@ -504,6 +553,7 @@ class BaseTable:
             self.df = pd.concat([baselines, ours], ignore_index=True)
         self.df["worst region"] = self.df[self.REGIONS].min(axis=1, numeric_only=True)
         self.df["worst income"] = self.df[self.INCOMES].min(axis=1, numeric_only=True)
+        self.analyzer = Analyze()
 
 
 class SummaryTable(BaseTable):
@@ -532,6 +582,9 @@ class SummaryTable(BaseTable):
                 "worst income",
                 "average worst subpop accuracy",
                 "avg worst 20th percentile class accs",
+                "avg worst 20th percentile subpop accs",
+                "avg worst 10th percentile class accs",
+                "avg worst 10th percentile subpop accs"
             ]
         ]
         table = self.average_over_datasets(table)
@@ -560,47 +613,74 @@ class SummaryTable(BaseTable):
 
 
 class GeographicShiftTable(BaseTable):
-    def __init__(self, baselines: pd.DataFrame, ours: pd.DataFrame = None):
+    def __init__(self, 
+        baselines: pd.DataFrame, 
+        ours: pd.DataFrame = None,
+        vlm: str = "clip_ViT-B/16"
+        ):
         """Makes a table containing baseline performance"""
         super().__init__(baselines, ours=ours)
+        self.vlm = vlm
         self.table = self.make_table()
 
     def make_table(self) -> pd.DataFrame:
         table = self.df[
-            self.df["dsetname"].isin(["dollarstreet__region", "geode__region"])
+            self.df["dsetname"].isin(["dollarstreet__income_level_thresh_0.9", "geode__region"])
         ]
         # set method to categorical with custom order
         table["method"] = pd.Categorical(table["method"], self.METHOD_ORDER)
-        table["vlm"] = pd.Categorical(table["vlm"], self.VLM_ORDER)
+        # table["vlm"] = pd.Categorical(table["vlm"], self.VLM_ORDER)
+        table = table[table["vlm"] == self.vlm]
         table = table.sort_values(by=["vlm", "dsetname", "method"])[
             [
                 "vlm",
                 "dsetname",
                 "method",
                 "accuracy",
-                "worst region",
-                "worst income",
+                # "worst region",
+                # "worst income",
+                # "average worst subpop accuracy",
                 "avg worst 20th percentile class accs",
+                "avg worst 20th percentile subpop accs",
+                "avg worst 10th percentile class accs",
+                "avg worst 10th percentile subpop accs",
+                # "avg worst 5th percentile class accs",
+                # "avg worst 5th percentile subpop accs"
             ]
         ]
+        table = self.average_over_trials(table)
         return table
+    
+    def average_over_trials(self, table: pd.DataFrame) -> pd.DataFrame:
+        return table.groupby(["dsetname", "method", "vlm"]).mean().reset_index()
 
     def to_latex(self) -> str:
+        table_cols = ["method", "accuracy", "worst region", "worst income", "average worst subpop accuracy", "avg worst 20th percentile class accs", "avg worst 20th percentile subpop accs"]
+
         table_latex = self.table
-        table_latex = table_latex.replace(np.nan, "-")
-        table_latex = table_latex.replace("dollarstreet__region", "DollarStreet")
-        table_latex = table_latex.replace("geode__region", "GeoDE")
-        table_latex = table_latex.replace("clip_ViT-B/16", "CLIP")
-        table_latex = table_latex.replace("blip2", "BLIP-2")
-        table_latex = table_latex.rename(
-            columns={"avg worst 20th percentile class accs": "worst 20\% of classes"}
-        )
-        return table_latex.to_latex(
-            index=False,
-            float_format="%.2f",
-            formatters={"dsetname": lambda x: x.replace("_", " ")},
-            caption="Performance on geographically diverse household object classification.",
-        )
+        table_strs = []
+        for dsetname, table_latex in self.table.groupby('dsetname'):
+            table_latex = table_latex[table_cols]
+            table_latex = table_latex.replace(np.nan, "-")
+            table_latex = table_latex.replace("dollarstreet__income_level_thresh_0.8", "DollarStreet")
+            table_latex = table_latex.replace("geode__region", "GeoDE")
+            table_latex = table_latex.replace("clip_ViT-B/16", "CLIP")
+            table_latex = table_latex.replace("blip2", "BLIP-2")
+            table_latex = table_latex.rename(
+                columns={"avg worst 20th percentile class accs": "Worst 20\% of Classes",
+                         "avg worst 20th percentile subpop accs": "Worst 20\% of Subpops",
+                         "average worst subpop accuracy": "Avg Worst Subpop"}
+            )
+            table_latex.method = table_latex.method.apply(self.analyzer.beautify_methodname)
+            table_strs.append(
+                table_latex.to_latex(
+                    index=False,
+                    float_format="%.2f",
+                    formatters={"dsetname": lambda x: x.replace("_", " ")},
+                    caption="Performance on geographically diverse household object classification.",
+                )
+            )
+        return table_strs
 
 
 class NonGeographicDatasetsTable(BaseTable):
@@ -619,7 +699,8 @@ class NonGeographicDatasetsTable(BaseTable):
 
     def make_table(self) -> pd.DataFrame:
         table = self.df[
-            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region"])
+            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region", "dollarstreet__region_thresh_0.8", "dollarstreet__region_thresh_0.9",
+                                       "dollarstreet__income_level_thresh_0.8", "dollarstreet__income_level_thresh_0.9"])
         ]
         table["dataset_type"] = table["dsetname"].apply(
             lambda x: "States" if "mit_states" in x else "Hierarchical"
@@ -635,8 +716,14 @@ class NonGeographicDatasetsTable(BaseTable):
                 "accuracy",
                 "average worst subpop accuracy",
                 "avg worst 20th percentile class accs",
+                "avg worst 20th percentile subpop accs",
+                "avg worst 10th percentile class accs",
+                "avg worst 10th percentile subpop accs",
+                # "avg worst 5th percentile class accs",
+                # "avg worst 5th percentile subpop accs"
             ]
         ]
+        table.method = table.method.apply(self.analyzer.beautify_methodname)
         table = self.average_over_dataset_types(table)
         return table
 
@@ -644,15 +731,17 @@ class NonGeographicDatasetsTable(BaseTable):
         return table.groupby(["dataset_type", "method"]).mean()
 
     def to_latex(self) -> str:
+        table_metrics = ["accuracy", "average worst subpop accuracy", "avg worst 20th percentile class accs", "avg worst 20th percentile subpop accs"]
         table_latex = self.table
+        table_latex = table_latex[table_metrics]
         table_latex = table_latex.rename(
-            columns={"avg worst 20th percentile class accs": "Worst 20\% of classes"}
-        )
-        table_latex = table_latex.rename(
-            columns={"average worst subpop accuracy": "Worst Subpopulation"}
+            columns={"avg worst 20th percentile class accs": "Worst 20\% of Classes",
+                     "avg worst 20th percentile subpop accs": "Worst 20\% of Subpops",
+                     "average worst subpop accuracy": "Avg Worst Subpop"}
+            # columns={"average worst subpop accuracy": "Worst Subpopulation"}
         )
         table_latex = table_latex.rename(columns={"accuracy": "Accuracy"})
-        table_latex.index = table_latex.index.map(lambda x: (x[0], x[1].upper()))
+        table_latex.index = table_latex.index.map(lambda x: (x[0], x[1].title()))
         return table_latex.to_latex(
             index=True,
             float_format="%.2f",

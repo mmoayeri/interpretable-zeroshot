@@ -1,0 +1,14 @@
+\begin{table}
+\caption{avg worst 5th percentile class accs}
+\begin{tabular}{rrrrrrrrr}
+\toprule
+Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
+\midrule
+NaN & 29.75 & 15.69 & 24.75 & 28.30 & 8.40 & 52.90 & 27.72 & 12.22 \\
+NaN & 26.80 & 16.00 & 15.25 & 23.97 & 8.75 & 58.94 & 29.36 & 9.56 \\
+NaN & 23.03 & 18.03 & 23.88 & 25.67 & 7.20 & 59.36 & 29.67 & 10.73 \\
+NaN & 25.60 & 14.00 & 34.50 & 29.65 & 10.84 & 52.99 & 35.08 & 12.63 \\
+NaN & 31.10 & 17.50 & 27.25 & 28.01 & 11.11 & 56.83 & 31.85 & 13.32 \\
+\bottomrule
+\end{tabular}
+\end{table}

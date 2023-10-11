@@ -19,6 +19,7 @@ from analysis import *
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from scipy.stats import pearsonr
+import clip
 
 def collect_results(log_dir: str) -> pd.DataFrame:
     log_dir_path = os.path.join(_CACHED_DATA_ROOT, 'experiments', log_dir, 'results', '*.json')    
@@ -188,7 +189,10 @@ def check_over_all_datasets():
 
 
 def ap_for_classname_vs_subpop(dset, vlm):
-    cache_path = os.path.join(_CACHED_DATA_ROOT, 'aps_by_class_and_subpop', vlm.get_modelname(), dset.get_dsetname()+'.pkl')
+    cache_dir = os.path.join(_CACHED_DATA_ROOT, 'aps_by_class_and_subpop', vlm.get_modelname())
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_path = os.path.join(cache_dir, dset.get_dsetname()+'.pkl')
+
     aps_by_class_and_subpop = dict()
     image_embeddings, identifiers = vlm.embed_all_images(dset)
 
@@ -262,7 +266,99 @@ def visualize_utilized_subpops(dset, our_preds, base_preds, image_embeddings, id
             ax.imshow(img.numpy().swapaxes(0,1).swapaxes(1,2))
         except:
             pass
-    f.tight_layout(); f.savefig(f'plots/examples/{dset.get_dsetname()}_2.jpg', dpi=300)
+    f.tight_layout(); f.savefig(f'plots/examples/{dset.get_dsetname()}.jpg', dpi=300)
+
+def heuristic_subpop_to_attr(subpop: str, classname: str):
+    subpop = subpop.lower()
+    if ' which is ' in subpop: # 
+        return subpop.split(' which is ')[-1]
+    elif ' which has ' in subpop:
+        return subpop.split(' which has ')[-1]
+    # elif ' from a ' in subpop:
+    #     return subpop[subpop.index('from a'):]
+    elif 'from the country' in subpop:
+        return 'from ' + subpop.split(' from the country ')[-1]
+    elif 'from the region' in subpop:
+        return 'from ' + subpop.split(' from the region ')[-1]
+    elif ' in the background' in subpop:
+        return subpop[subpop.index('with a'):].split(' in the background')[0] 
+    else:
+        return subpop.replace(classname+' '+classname, classname)#.strip()
+    
+def save_one_eg_inference(img, our_pred, base_pred, subpops, save_path):
+    plt.rcParams.update(
+        {
+            "font.family": "sans-serif",
+            "font.sans-serif": "cmss10",
+            "axes.formatter.use_mathtext": "True",
+            "mathtext.fontset": "stixsans"
+        }
+    )
+
+    f, ax = plt.subplots(1,1, figsize=(3,3.75))
+    ax.imshow(img.numpy().swapaxes(0,1).swapaxes(1,2))
+    _ = [ax.spines[spine].set_visible(False) for spine in ['right', 'left', 'top', 'bottom']]
+    ax.set_xticks([]); ax.set_yticks([])
+    ax.set_title(f'Standard prediction: {base_pred.title()} $X$', color='red', fontsize=13)
+    # ax.set_xlabel(f'Standard prediction: {base_pred.title()} $X$', color='red', fontsize=13)
+    xlabel = f'Ours: {our_pred.title()} $\checkmark$, namely...'
+
+    attrs = [heuristic_subpop_to_attr(s, our_pred) for s in subpops]
+    for i, attr in enumerate(attrs):
+        # if i % 2 == 0:
+        #     xlabel += '\n'
+        # if i < 4:
+            # xlabel += ', '
+        xlabel += '\n$\mathbf{'+attr.replace(' ','\;').replace('flowers', 'flower')+'}$'
+    ax.set_xlabel(xlabel, color='green', fontsize=15)
+    # ax.set_title(xlabel, color='green', fontsize=13)
+    f.tight_layout(); f.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+def save_many_eg_inferences(dset, our_preds, base_preds, image_embeddings, identifiers, text_embeddings_by_cls, subpop_captions_by_cls, k_to_show=4):
+    """
+    ths is going to show 
+    """
+    
+    sims_by_class = dict({
+        classname: cos_sim(image_embeddings, vecs) 
+            for classname, vecs in text_embeddings_by_cls.items()
+    })
+
+    save_dir = f'plots/eg_inferences7/{dset.get_dsetname()}/'
+    os.makedirs(save_dir, exist_ok=True)
+
+    jobs = []
+    # executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'eg_inferences')
+    # executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", mem_gb=80, gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+
+    # with executor.batch():
+    for j, (identifier, our_pred, base_pred) in enumerate(zip(identifiers, our_preds, base_preds)):
+        f, ax = plt.subplots(1,1, figsize=(3,3.75))
+        img = dset[identifier][0]
+        top_sims, top_inds = sims_by_class[our_pred][j].topk(k=k_to_show)        
+        subpops = [subpop_captions_by_cls[our_pred][ind] for ind in top_inds]
+
+        save_path = save_dir+f'{our_pred.replace(" ","_")}__{j}.jpg'
+        save_one_eg_inference(img, our_pred, base_pred, subpops, save_path)
+            # jobs.append(executor.submit(save_one_eg_inference, (img, our_pred, base_pred, subpops, save_path)))
+
+
+        # ax.imshow(img.numpy().swapaxes(0,1).swapaxes(1,2))
+        # _ = [ax.spines[spine].set_visible(False) for spine in ['right', 'left', 'top', 'bottom']]
+        # ax.set_xticks([]); ax.set_yticks([])
+        # ax.set_title(f'Standard prediction: {base_pred.title()} $X$', color='red', fontsize=13)
+        # xlabel = f'Ours: {our_pred.title()} $\checkmark$, namely...'
+
+        # attrs = [heuristic_subpop_to_attr(s, our_pred) for s in subpops]
+        # for i, subpop in enumerate(attrs):
+        #     if i % 2 == 0:
+        #         xlabel += '\n'
+        #     xlabel += '$\mathit{'+subpop.replace(' ','\;')+'}$'
+        #     if i < 3:
+        #         xlabel += ', '
+        # ax.set_xlabel(xlabel, color='green', fontsize=13)
+        # f.tight_layout(); f.savefig(save_dir+f'{our_pred.replace(" ","_")}__{j}.jpg', dpi=300, bbox_inches='tight')
 
 
 def compare_accs(our_preds, base_preds, identifiers, dset, save_path=None):
@@ -303,14 +399,16 @@ def compare_ours_to_base(dset, vlm, classes_to_focus_on=None):
         image_embeddings = image_embeddings[inds_to_keep]
         identifiers = [identifiers[i] for i in inds_to_keep]
 
-    attr_keys = ['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', 'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']
+    attr_keys = ['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', 'llm_backgrounds', 'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']
+    # attr_keys = ['auto_global', 'country', 'income_level', 'llm_co_occurring_objects', 'llm_dclip', 'llm_kinds', 'llm_states', 'region', 'vanilla']
     llm = Vicuna()
     attributers = [init_attributer(key, dset, llm) for key in attr_keys]
     texts_by_subpop_by_class = infer_attrs(dset.classnames, attributers, ['USE OPENAI IMAGENET TEMPLATES'])
+    # texts_by_subpop_by_class = infer_attrs(dset.classnames, attributers, ['a photo of a {}'])#'USE OPENAI IMAGENET TEMPLATES'])
     vlm_prompt_dim_handler = init_vlm_prompt_dim_handler('average_and_norm_then_stack')
     text_embeddings_by_subpop_by_cls = vlm.embed_subpopulation_descriptions(texts_by_subpop_by_class)
     text_embeddings_by_cls, subpop_captions_by_cls = vlm_prompt_dim_handler.convert_to_embeddings_by_cls(text_embeddings_by_subpop_by_cls)
-    predictor  = init_predictor('average_top_8_sims', lamb=0)
+    predictor  = init_predictor('average_top_16_sims', lamb=0)
     our_preds, _ = predictor.predict(image_embeddings, text_embeddings_by_subpop_by_cls,
                                     dset.classnames, vlm_prompt_dim_handler)
 
@@ -318,16 +416,24 @@ def compare_ours_to_base(dset, vlm, classes_to_focus_on=None):
     base_preds, _ = predictor.predict(image_embeddings, vanilla_embeddings_by_subpop_by_cls,
                                     dset.classnames, vlm_prompt_dim_handler)
 
-    save_path = os.path.join(_CACHED_DATA_ROOT, 'accs_by_class_and_subpop', vlm.get_modelname(), dset.get_dsetname()+'.pkl')
-    compare_accs(our_preds, base_preds, identifiers, dset, save_path=save_path)
+    save_dir = os.path.join(_CACHED_DATA_ROOT, 'accs_by_class_and_subpop', vlm.get_modelname())
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, dset.get_dsetname()+'.pkl')
+    # compare_accs(our_preds, base_preds, identifiers, dset, save_path=save_path)
 
-    # diff_inds = [i for i, (p1, p2) in enumerate(zip(base_preds, our_preds)) if ((p1 != p2) and (p2 in dset.valid_classnames_for_id(identifiers[i])))]
-    # identifiers, our_preds, base_preds = [[x for i,x in enumerate(l) if i in diff_inds] for l in [identifiers, our_preds, base_preds]]
-    # image_embeddings = image_embeddings[np.array(diff_inds)]
+    diff_inds = [i for i, (p1, p2) in enumerate(zip(base_preds, our_preds)) if ((p1 != p2) and (p2 in dset.valid_classnames_for_id(identifiers[i])))]
+    identifiers, our_preds, base_preds = [[x for i,x in enumerate(l) if i in diff_inds] for l in [identifiers, our_preds, base_preds]]
+    image_embeddings = image_embeddings[np.array(diff_inds)]
+    save_many_eg_inferences(dset, our_preds, base_preds, image_embeddings, identifiers, text_embeddings_by_cls, subpop_captions_by_cls)
+
     # visualize_utilized_subpops(dset, our_preds, base_preds, image_embeddings, identifiers, text_embeddings_by_cls, subpop_captions_by_cls)
 
 def visualize_bias(dset, d, classname, attr, ids_we_fixed):
-    f, axs = plt.subplots(1,2,figsize=(7,3.75))
+    # My favs are 3 for balloon, 5 for arctic fox, and 1 for streetview
+    # 2,3 for keyboard and penguin. 
+
+    # f, axs = plt.subplots(1,2,figsize=(7,3.75))
+    f, axs = plt.subplots(1,2,figsize=(6,4))
     dsetname = dset.get_dsetname()
 
     if 'mit_states' in dsetname:
@@ -341,8 +447,8 @@ def visualize_bias(dset, d, classname, attr, ids_we_fixed):
     hard_ids = [idtfr for idtfr in dset.ids_for_subpop(classname, attr) if idtfr in ids_we_fixed]
 
     try:
-        easy_img_in_class = dset[dset.ids_for_subpop(classname, best_attr)[0]][0]
-        hard_img_in_class = dset[hard_ids[min(1, len(hard_ids)-1)]][0]
+        easy_img_in_class = dset[dset.ids_for_subpop(classname, best_attr)[1]][0]
+        hard_img_in_class = dset[hard_ids[min(4, len(hard_ids)-1)]][0]
     except:
         print(f'Currently dont have images for the class {classname} in {dsetname} saved')
         return
@@ -351,13 +457,17 @@ def visualize_bias(dset, d, classname, attr, ids_we_fixed):
     base_hard_acc, our_hard_acc = [d[method]['by_subpop'][classname][attr] for method in ['base', 'ours']]
 
     axs[0].imshow(easy_img_in_class.numpy().swapaxes(0,1).swapaxes(1,2))
-    axs[0].set_title(f'Base Accuracy: {base_easy_acc:.2f}%', fontsize=16)
-    axs[0].set_xlabel(f'Our Accuracy: {our_easy_acc:.2f}%', fontsize=16, fontweight='bold')
+    # axs[0].set_title(f'Base Accuracy: {base_easy_acc:.2f}%', fontsize=16)
+    # axs[0].set_xlabel(f'Our Accuracy: {our_easy_acc:.2f}%', fontsize=16, fontweight='bold')
+    axs[0].set_title(f'Base Acc.: {base_easy_acc:.2f}%', fontsize=19)
+    axs[0].set_xlabel(f'Our Acc.: {our_easy_acc:.2f}%', fontsize=19, fontweight='bold')
 
     gain = f'{(our_hard_acc - base_hard_acc):.1f}'
     axs[1].imshow(hard_img_in_class.numpy().swapaxes(0,1).swapaxes(1,2))
-    axs[1].set_title(f'Base Accuracy: {base_hard_acc:.2f}%', color='red', fontsize=16, fontweight='bold')
-    axs[1].set_xlabel(f'Our Accuracy: {our_hard_acc:.2f}%'+ '($\mathbf{+'+gain+'}$)', color='forestgreen', fontsize=16, fontweight='bold')
+    # axs[1].set_title(f'Base Accuracy: {base_hard_acc:.2f}%', color='red', fontsize=16, fontweight='bold')
+    # axs[1].set_xlabel(f'Our Accuracy: {our_hard_acc:.2f}%'+ '($\mathbf{+'+gain+'}$)', color='forestgreen', fontsize=16, fontweight='bold')
+    axs[1].set_title(f'Base Acc.: {base_hard_acc:.2f}%', color='red', fontsize=19, fontweight='bold')
+    axs[1].set_xlabel(f'Our Acc.: {our_hard_acc:.2f}%'+ '($\mathbf{+'+gain+'}$)', color='forestgreen', fontsize=19, fontweight='bold')
 
     for ax in axs:
         _ = [ax.spines[x].set_visible(False) for x in ['top', 'bottom', 'left', 'right']]
@@ -365,17 +475,18 @@ def visualize_bias(dset, d, classname, attr, ids_we_fixed):
 
     attr = attr.replace(' '+classname, '')
 
-    title = f"{classname.title()} vs "
+    title = f"{classname.title()} vs \n"
     if 'dollarstreet' in dsetname:
         title += f"{classname.title()} " +"$\mathbf{from\;"
         if dset.attr_col == 'income_level':
             title += f"a\;{attr}\;country"+"}$"
+            title = title.replace('poor', 'low\;income').replace('lower middle class', 'lower\;middle\;income')
         else:
             title += attr+"}$"
     else:
-        title += " $\mathbf{"+attr.title()+"}$"+f" {classname.title()}"
-    f.suptitle(title, fontsize=20)#, y=0.975)
-    save_path = f'plots/bias_examples/{dsetname}/{attr.replace(" ","_")}__{classname.replace("/" or " ", "_")}.jpg'
+        title += "$\mathbf{"+attr.title()+"}$"+f" {classname.title()}"
+    f.suptitle(title, fontsize=23, y=1)
+    save_path = f'plots/bias_examples2/{dsetname}/{attr.replace(" ","_")}__{classname.replace("/" or " ", "_")}.jpg'
     os.makedirs('/'.join(save_path.split('/')[:-1]), exist_ok=True)
     f.tight_layout(); f.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
@@ -383,13 +494,13 @@ def visualize_bias(dset, d, classname, attr, ids_we_fixed):
 
 def construct_ap_and_acc_gain_df(dset):
     dsetname = dset.get_dsetname()
-    accs_and_preds = load_cached_data(f'../meta_work/accs_by_class_and_subpop/clip__ViT-B_16/{dsetname}.pkl')
-    aps = load_cached_data(f'../meta_work/aps_by_class_and_subpop/clip__ViT-B_16/{dsetname}.pkl')
+    accs_and_preds = load_cached_data(f'{_CACHED_DATA_ROOT}/accs_by_class_and_subpop/clip__ViT-B_16/{dsetname}.pkl')
+    aps = load_cached_data(f'{_CACHED_DATA_ROOT}/aps_by_class_and_subpop/clip__ViT-B_16/{dsetname}.pkl')
 
     identifiers, our_preds, base_preds = [accs_and_preds[key] for key in ['identifiers', 'our_preds', 'base_preds']]
     ids_we_fixed = [idtfr for idtfr, p1, p2 in zip(identifiers, base_preds, our_preds) if ((p1 != p2) and (p2 in dset.valid_classnames_for_id(idtfr)))]
 
-    clsnames, subpops, attrs, classname_aps, subpop_aps, ap_gains, acc_gains = [],[],[],[],[],[],[]
+    clsnames, subpops, attrs, classname_aps, subpop_aps, ap_gains, acc_gains, base_accs = [],[],[],[],[],[],[],[]
     for (classname, attr), acc_gain in accs_and_preds['gains']['by_subpop'].items():
         clsnames.append(classname)
         attrs.append(attr)
@@ -399,26 +510,28 @@ def construct_ap_and_acc_gain_df(dset):
         classname_aps.append(classname_ap); subpop_aps.append(subpop_ap)
         ap_gains.append(subpop_ap-classname_ap)
         acc_gains.append(acc_gain)
+        base_accs.append(accs_and_preds['base']['by_subpop'][classname][attr])
 
-    df = pd.DataFrame(zip(clsnames, subpops, attrs, ap_gains, acc_gains, classname_aps, subpop_aps), 
-            columns=['classname', 'subpop', 'attr', 'ap_gain', 'acc_gain', 'classname_ap', 'subpop_ap'])
+    df = pd.DataFrame(zip(clsnames, subpops, attrs, ap_gains, acc_gains, classname_aps, subpop_aps, base_accs), 
+            columns=['classname', 'subpop', 'attr', 'ap_gain', 'acc_gain', 'classname_ap', 'subpop_ap', 'base_acc'])
     return df, ids_we_fixed, accs_and_preds
 
-def save_many_bias_examples(dset, min_ap=0.3, min_gain=10):
+def save_many_bias_examples(dset, min_ap=0.2, min_gain=8):
     df, ids_we_fixed, accs_and_preds = construct_ap_and_acc_gain_df(dset)
     sub_df = df[(df.ap_gain > min_ap) & (df.acc_gain > min_gain)]
     for i, row in sub_df.iterrows():
         classname, attr = [row[x] for x in ['classname', 'attr']]
         visualize_bias(dset, accs_and_preds, classname, attr, ids_we_fixed)
-    # visualize_bias(dset, accs_and_preds, 'balloon', 'deflated', ids_we_fixed)
+    # if 'balloon' in dset.classnames:
+    #     visualize_bias(dset, accs_and_preds, 'balloon', 'deflated', ids_we_fixed) # use id 3
 
 
-def visualize_ap_gain(dset, classname, attr, classname_ap, subpop_ap, ids_we_fixed):
+def visualize_ap_gain(dset, classname, attr, classname_ap, subpop_ap, acc_gain, ids_we_fixed):
     f, ax = plt.subplots(1,1, figsize=(3,4))
     dsetname = dset.get_dsetname()
     eg_ids = [idtfr for idtfr in dset.ids_for_subpop(classname, attr) if idtfr in ids_we_fixed]
     try:
-        eg_img = dset[eg_ids[1]][0]
+        eg_img = dset[eg_ids[2]][0]
     except:
         print(f'Not enough improved images for {attr} {classname} or images not found.')
         return
@@ -427,31 +540,48 @@ def visualize_ap_gain(dset, classname, attr, classname_ap, subpop_ap, ids_we_fix
     _ = [ax.spines[x].set_visible(False) for x in ['top', 'bottom', 'left', 'right']]
     ax.set_xticks([]); ax.set_yticks([])
 
-    if 'dollarstreet' in dsetname:
-        title = f"{classname.title()}"
+    if 'dollarstreet' in dsetname or 'geode' in dsetname:
+        title = classname.title()
         if dset.attr_col == 'income_level':
-            title += "$\mathbf{from\;a}$\n$\mathbf{"+f"{attr}\;country"+"}$"
+            title += "$\mathbf{\;from\;a}$\n$\mathbf{"+f"{attr}\;country"+"}$"
+            title = title.replace('poor', 'low\;income').replace('lower middle class', 'lower\;middle\;income')
+            # title += "$\mathbf{\;from\;a}$\n$\mathbf{"+f"{attr}\;country"+"}$"
         else:
-            title += "\n$\mathbf{from\;"+attr+"}$"
+            title += "\n$\mathbf{\;from\;"+attr+"}$"
     else:
-        title = " $\mathbf{"+attr.replace(' '+classname, '').title()+"}$"+f" {classname.title()}"
-    ax.set_title(title, fontsize=20)
+        title = "$\mathbf{"+attr.replace(' '+classname, '').title().replace(' ','\;')+"}$\n"+f"{classname.title()}"
+    ax.set_title(title, fontsize=18)
     # xlabel = "{x:<15} AP: $\mathbf{}"
-    xlabel = '\n'.join([f"{x:<12} AP: {ap*100:.1f}" for x,ap in zip(["Classname", "+ Attribute"], [classname_ap, subpop_ap])])
-    neg = subpop_ap < classname_ap
-    ax.set_xlabel(xlabel, color="red" if neg else "black", fontweight="bold", fontsize=18)
-    save_path = f'plots/ap_gain_examples/{dsetname}/{"bad__" if neg else ""}{attr.replace("/" or " ","_")}__{classname.replace("/" or " ", "_")}.jpg'
+
+    ax.text(10, 240, "Classname alone", fontsize=15)
+    ax.text(150, 240, f"AP: {classname_ap*100:5.1f}", fontsize=15, color='red')
+    ax.text(10, 259, "with $\mathbf{Attribute}$", fontsize=15)
+    ax.text(150, 259, f"AP: {subpop_ap*100:5.1f}", fontsize=15, color='green')
+    ax.text(15, 278, "$\\rightarrow$ Our Acc. Gain: $\mathbf{+"+f"{acc_gain:.1f}"+"}$", fontsize=15, color='green')
+
+
+    # ax.text(1, 240, "{x:<16} AP: {ap:4.1f}".format(x="Classname alone", ap=classname_ap*100), fontsize=14)    
+    # ax.text(1, 259, "{x:<18} AP: {ap:4.1f}".format(x="with Attribute", ap=subpop_ap*100), fontsize=16, color='green')
+    # ax.text(12, 278, "$\\rightarrow$ Our Acc. Gain: $\mathbf{+"+f"{acc_gain:.1f}"+"}$", fontsize=16, color='green')
+
+    # xlabel = '\n'.join([f"{x:<12} AP: {ap*100:.1f}" for x,ap in zip(["Classname", "+ Attribute"], [classname_ap, subpop_ap])])
+    # xlabel += '\n' + f'Our Acc. Gain: +{acc_gain:.2f}'
+    # neg = subpop_ap < classname_ap
+    # ax.set_xlabel(xlabel, color="red" if neg else "black", fontsize=14)
+    save_dir = f'plots/ap_gain_examples2/{dsetname}'
+    os.makedirs(save_dir, exist_ok=True)
+    # save_path = f'{save_dir}/{"bad__" if neg else ""}{attr.replace("/" or " ","_")}__{classname.replace("/" or " ", "_")}.jpg'
+    save_path = f'{save_dir}/{attr.replace("/" or " ","_")}__{classname.replace("/" or " ", "_")}.jpg'
     os.makedirs('/'.join(save_path.split('/')[:-1]), exist_ok=True)
     f.tight_layout(); f.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.close()
 
-def view_many_ap_gain_egs(dset, min_ap=0.3, min_gain=10):
+def view_many_ap_gain_egs(dset, min_ap=0.2, min_gain=5):
     df, ids_we_fixed, _ = construct_ap_and_acc_gain_df(dset)
     sub_df = df[(df.ap_gain > min_ap) & (df.acc_gain > min_gain)]
     for i, row in sub_df.iterrows():
-        classname, attr, classname_ap, subpop_ap = [row[x] for x in ['classname', 'attr', 'classname_ap', 'subpop_ap']]
-        visualize_ap_gain(dset, classname, attr, classname_ap, subpop_ap, ids_we_fixed)
-
+        classname, attr, classname_ap, subpop_ap, acc_gain = [row[x] for x in ['classname', 'attr', 'classname_ap', 'subpop_ap', 'acc_gain']]
+        visualize_ap_gain(dset, classname, attr, classname_ap, subpop_ap, acc_gain, ids_we_fixed)
 
 
 def compare_to_linear_probe(subsample_factor=None):
@@ -519,29 +649,132 @@ def plot_comparison_to_linear_probe():
 
 
 def plot_ap_gain_hists():
+    from analysis import Analyze
+    plt.rcParams.update(
+        {
+            "font.family": "sans-serif",
+            "font.sans-serif": "cmss10",
+    #         "axes.formatter.use_mathtext": "True",
+    #         "mathtext.fontset": "stixsans"
+        }
+    )
+
+
+    analyzer = Analyze()
     all_dfs = []
-    for dset in [Breeds('living17'), Breeds('entity13'), Breeds('entity30'), Breeds('nonliving26'), MITStates(max_allowable_sim_of_classnames=0.8), 
-                DollarstreetDataset('income_level')]:
+    for dset in [Breeds('entity13'), Breeds('entity30'), Breeds('nonliving26'), Breeds('living17'), 
+                MITStates(max_allowable_sim_of_classnames=0.9), MITStates(max_allowable_sim_of_classnames=0.8)]:#, 
+                # DollarstreetDataset('income_level', max_allowable_sim_of_classnames=0.9), GeodeDataset()]:
         df, ids_we_fixed, accs_and_preds = construct_ap_and_acc_gain_df(dset)
-        df['dsetname'] = [dset.get_dsetname().title().split('__')[0]]*len(df)
+        df['dsetname'] = [analyzer.beautify_dsetname(dset.get_dsetname())]*len(df)
         all_dfs.append(df)
 
     df = pd.concat(all_dfs)
-    f, ax = plt.subplots(1,1, figsize=(6,5))
-    sns.histplot(df, x='ap_gain', y='dsetname', hue='dsetname', ax=axs, legend=True, stat='density')
-    ax.set_xlabel('AP of Classname & Attribute - AP of Classname Alone', fontsize=14)
+    f, ax = plt.subplots(1,1, figsize=(5,4))
+    ax = sns.stripplot(df, x='ap_gain', y='dsetname', hue='dsetname', legend=True, jitter=False, s=10, marker="D", linewidth=1, alpha=.05)
+    # ax = sns.swarmplot(df, x='ap_gain', y='dsetname', hue='dsetname', legend=True, size=2,#stat='density', bins=20,
+    #     hue_order=dsets_in_order)#, palette=colors)#sns.color_palette("Greens", as_cmap=False))
+    # sns.histplot(df, x='ap_gain', hue='dsetname', ax=ax, legend=True, bins=20)
+    sns.move_legend(ax, "upper left", title='Dataset', frameon=False, fontsize=15, bbox_to_anchor=(-0.07, 1), handletextpad=0.01)
+    # ax.set_xlabel('AP of Classname & Attribute \n - AP of Classname Alone', fontsize=14)
+    ax.set_xlabel('AP Gain from Adding Attribute', fontsize=16)
     ax.set_ylabel('')
     ax.set_yticks([])
-    f.savefig('plots/ap_gains.jpg', dpi=300, bbox_inches='tight')
+    ax.set_xlim([-1,1])
+    ax.set_xticks([-1,-0.5,0,0.5,1])
+    f.savefig('plots/ap_gains2.jpg', dpi=300, bbox_inches='tight')
+
+
+def obtain_zero_shot_head(clip_model, dset, prompt_template='a photo of a {}'):
+    text_prompts = torch.cat([clip.tokenize(prompt_template.format(clsname)) for clsname in dset.classnames]).cuda()
+    clip_model = clip_model.cuda()
+    text_ftrs = clip_model.encode_text(text_prompts)
+    text_ftrs /= text_ftrs.norm(dim=-1, keepdim=True)
+    return text_ftrs
+
+def record_problem_classes(dsetname='mit_states', thresh=0.85):
+    '''
+    Some classes are arguably overlapping. We'll remove ones that have CLIP text similarity above 0.9.
+    Specifically, for any pair of classes w/ CLIP similarity > 0.9, we remove the class with higher average
+    CLIP similarity to all classes, as these are likely more broad and potentially overlapping w. others. 
+    '''
+    ### Compute similarity of text embeddings for each class name
+    if dsetname == 'mit_states':
+        dset = MITStates(max_allowable_sim_of_classnames=1)
+    elif dsetname == 'dollarstreet':
+        dset = DollarstreetDataset()
+    n_classes = len(dset.classnames)
+    clip_model, _ = clip.load('ViT-B/16')
+    head = obtain_zero_shot_head(clip_model, dset)
+    sims = (head @ head.T)
+    sims = sims - torch.eye(sims.shape[0]).cuda() * torch.diag(sims)
+    sorted_sims = torch.argsort(-1*sims.flatten())
+
+    # For each pair w/ sim > thresh, add broader class to problematic class list
+    problem_classes = []
+    for i in tqdm(sorted_sims):
+        if sims[i // n_classes, i % n_classes] <= thresh:
+            break
+        # if one of the pair is already added, we don't need to add a new one
+        if (i//n_classes not in problem_classes) and (i%n_classes not in problem_classes):
+            c1, c2 = [dset.classnames[j] for j in [i//n_classes, i%n_classes]]
+            # now we need to remove one of two colliding classes; we'll remove the one most similar to everyone else
+            if sims[i//n_classes].mean() > sims[i%n_classes].mean():
+                problem_classes.append(i//n_classes)
+                kept_c = c2
+            else:
+                problem_classes.append(i%n_classes)
+                kept_c = c1
+
+            print(f'Collision between {c1} and {c2}. Kept {kept_c}')
+    # we'll need to filter by name, so let's save by name
+    print(f'{len(problem_classes)} problematic classes found out of {n_classes}.')
+    problem_class_names = [dset.classnames[i] for i in problem_classes]
+    cache_data(f'/checkpoint/mazda/data/meta_files/{dsetname}_problem_classes_thresh_{thresh}.pkl', problem_class_names)
 
 
 if __name__ == '__main__':
-    # executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'aps_by_class_and_subpop/')
+    executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'aps_by_class_and_subpop/')
+    executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", mem_gb=80, gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+
     # executor.update_parameters(timeout_min=180, slurm_partition="cml-dpart", slurm_qos="cml-default", slurm_account="cml-sfeizi", mem_gb=32, gpus_per_node=1, tasks_per_node=1)
-    # jobs = []
+    jobs = []
     # vlm = CLIP('ViT-B/16')
     # diversity_accuracy_correlation(vlm)
+
+    # dsets = []
+    # dsets += [Breeds(x) for x in ['living17']]#'nonliving26', 'living17', 'entity13', 'entity30']]
+    # # dsets += [Breeds(x) for x in ['nonliving26', 'living17', 'entity13', 'entity30']]
+    # dsets += [MITStates(max_allowable_sim_of_classnames=thresh) for thresh in [0.8, 0.9]]
+    # dsets += [DollarstreetDataset(attr_col='income_level', max_allowable_sim_of_classnames=0.9)]#, GeodeDataset()]
+    # dsets = [DollarstreetDataset(attr_col='income_level', max_allowable_sim_of_classnames=0.9), GeodeDataset()]
     # with executor.batch():
+    # for dset in dsets:
+        # save_many_bias_examples(dset)
+        # view_many_ap_gain_egs(dset)
+            # jobs.append(executor.submit(ap_for_classname_vs_subpop, dset, vlm))
+            # jobs.append(executor.submit(compare_ours_to_base, dset, vlm))
+            # jobs.append(executor.submit(view_many_ap_gain_egs, dset))
+            # ap_for_classname_vs_subpop(dset, vlm)
+            # compare_ours_to_base(dset, vlm)
+
+
+    #     dset = Breeds('living17')
+    # # compare_ours_to_base(dset, vlm, ["fox", "ape", "wolf"])
+    #     job = executor.submit(compare_ours_to_base, dset, vlm, ["fox", "ape", "wolf"])
+
+    # dset = MITStates(max_allowable_sim_of_classnames=0.9)
+    # compare_ours_to_base(dset, vlm, ["tulip", "pear", "balloon", "tomato", "clock"])
+        # jobs.append(executor.submit(compare_ours_to_base, dset, vlm, ["tulip", "pear", "balloon", "tomato", "clock", "canyon", "shower", "velvet"]))
+
+    #     dset = MITStates(max_allowable_sim_of_classnames=0.8)
+    # # # compare_ours_to_base(dset, vlm, ["tulip", "pear", "balloon", "tomato", "clock"])
+    #     jobs.append(executor.submit(compare_ours_to_base, dset, vlm, ["tulip", "pear", "balloon", "tomato", "clock", "canyon", "shower", "velvet"]))
+
+    #     dset = DollarstreetDataset(attr_col='income_level', max_allowable_sim_of_classnames=0.9)
+    # # # compare_ours_to_base(dset, vlm, ["street view", "stove/hob", "roof"])
+    #     jobs.append(executor.submit(compare_ours_to_base, dset, vlm, ["street view", "stove/hob", "roof"]))
+
     # for dset in [Breeds(), MITStates(max_allowable_sim_of_classnames=0.8), DollarstreetDataset('income_level')]:
     # for dset in [Breeds(x) for x in ['entity13', 'entity30', 'nonliving26']]:
     # for dset in [MITStates(max_allowable_sim_of_classnames=0.8)]:#, , DollarstreetDataset('income_level')]:
@@ -553,6 +786,8 @@ if __name__ == '__main__':
             # job = executor.submit(ap_for_classname_vs_subpop, dset, vlm)
             # jobs.append(job)
     
+    plot_ap_gain_hists()
+
     # dset = DollarstreetDataset('income_level')#Breeds()#MITStates(max_allowable_sim_of_classnames=0.8)
     # save_many_bias_examples(dset)
     # visualize_bias()
@@ -563,4 +798,7 @@ if __name__ == '__main__':
     # compare_to_linear_probe()
     # plot_comparison_to_linear_probe()
 
-    plot_diversity_scattters()
+    # plot_diversity_scattters()
+    # for thresh in [0.7, 0.8, 0.85, 0.9]: 
+    # for thresh in [0.5]:
+        # record_problem_classes('dollarstreet', thresh=thresh)
