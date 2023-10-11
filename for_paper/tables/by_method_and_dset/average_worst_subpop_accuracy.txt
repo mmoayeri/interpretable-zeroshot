@@ -1,14 +1,9 @@
-\begin{table}
-\caption{average worst subpop accuracy}
-\begin{tabular}{rrrrrrrrr}
-\toprule
-Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
-\midrule
-NaN & 21.77 & 36.27 & 57.12 & 56.37 & 37.18 & 83.49 & 53.83 & 29.49 \\
-NaN & 22.54 & 36.87 & 54.54 & 55.65 & 36.69 & 84.50 & 53.01 & 27.81 \\
-NaN & 21.88 & 36.87 & 56.37 & 57.34 & 37.18 & 85.20 & 53.94 & 28.96 \\
-NaN & 23.77 & 42.50 & 59.50 & 56.14 & 37.98 & 84.56 & 53.69 & 29.22 \\
-NaN & 25.31 & 39.03 & 59.54 & 58.91 & 39.11 & 85.42 & 54.26 & 30.10 \\
-\bottomrule
+\begin{tabular}{lrrrrrrrr}
+dsetname & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) & Entity13 & Entity30 & Nonliving26 & Living17 \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 37.18 & 83.49 & 53.83 & 29.49 & 21.77 & 36.27 & 57.12 & 82.24 \\
+DCLIP & 36.69 & 84.50 & 53.01 & 27.81 & 22.54 & 36.87 & 54.54 & 81.82 \\
+Waffle & 37.18 & 85.20 & 53.94 & 28.96 & 21.88 & 36.87 & 56.37 & 81.41 \\
+CHiLS & 37.98 & 84.56 & 53.69 & 29.22 & 23.77 & \textbf{42.50} & 59.50 & \textbf{83.53} \\
+Ours & \textbf{39.11} & \textbf{85.42} & \textbf{54.26} & \textbf{30.10} & \textbf{25.31} & 39.03 & \textbf{59.54} & \textbf{83.53} \\
 \end{tabular}
-\end{table}

@@ -1,14 +1,9 @@
-\begin{table}
-\caption{avg worst 20th percentile subpop accs}
-\begin{tabular}{rrrrrrrrr}
-\toprule
-Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
-\midrule
-NaN & 14.54 & 15.62 & 33.90 & 31.57 & 11.17 & 69.50 & 36.23 & 11.78 \\
-NaN & 14.54 & 14.92 & 30.19 & 29.99 & 11.67 & 71.61 & 35.08 & 10.16 \\
-NaN & 13.24 & 16.27 & 32.77 & 30.36 & 11.64 & 73.47 & 36.89 & 10.93 \\
-NaN & 15.23 & 16.88 & 39.67 & 32.37 & 12.58 & 70.55 & 37.44 & 11.76 \\
-NaN & 17.33 & 16.94 & 38.86 & 33.97 & 14.33 & 72.93 & 38.21 & 12.64 \\
-\bottomrule
+\begin{tabular}{lrrrrrrrr}
+dsetname & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) & Entity13 & Entity30 & Nonliving26 & Living17 \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 11.17 & 69.50 & 36.23 & 11.78 & 14.54 & 15.62 & 33.90 & 72.07 \\
+DCLIP & 11.67 & 71.61 & 35.08 & 10.16 & 14.54 & 14.92 & 30.19 & 73.57 \\
+Waffle & 11.64 & \textbf{73.47} & 36.89 & 10.93 & 13.24 & 16.27 & 32.77 & 71.49 \\
+CHiLS & 12.58 & 70.55 & 37.44 & 11.76 & 15.23 & 16.88 & \textbf{39.67} & 74.29 \\
+Ours & \textbf{14.33} & 72.93 & \textbf{38.21} & \textbf{12.64} & \textbf{17.33} & \textbf{16.94} & 38.86 & \textbf{74.93} \\
 \end{tabular}
-\end{table}

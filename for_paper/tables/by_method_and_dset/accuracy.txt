@@ -1,14 +1,9 @@
-\begin{table}
-\caption{accuracy}
-\begin{tabular}{rrrrrrrrr}
-\toprule
-Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
-\midrule
-NaN & 68.22 & 68.43 & 77.27 & 67.34 & 51.21 & 90.34 & 78.24 & 59.07 \\
-NaN & 68.64 & 68.49 & 76.32 & 66.82 & 49.80 & 91.14 & 77.80 & 55.65 \\
-NaN & 68.95 & 68.66 & 77.13 & 67.73 & 51.22 & 91.34 & 78.31 & 58.47 \\
-NaN & 69.33 & 70.69 & 79.55 & 68.32 & 51.62 & 90.85 & 78.83 & 58.55 \\
-NaN & 71.47 & 70.59 & 79.25 & 69.21 & 52.33 & 91.58 & 79.33 & 59.90 \\
-\bottomrule
+\begin{tabular}{lrrrrrrrr}
+dsetname & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) & Entity13 & Entity30 & Nonliving26 & Living17 \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 51.21 & 90.34 & 78.24 & 59.07 & 68.22 & 68.43 & 77.27 & 92.96 \\
+DCLIP & 49.80 & 91.14 & 77.80 & 55.65 & 68.64 & 68.49 & 76.32 & 93.35 \\
+Waffle & 51.22 & 91.34 & 78.31 & 58.47 & 68.95 & 68.66 & 77.13 & 92.80 \\
+CHiLS & 51.62 & 90.85 & 78.83 & 58.55 & 69.33 & \textbf{70.69} & \textbf{79.55} & \textbf{93.65} \\
+Ours & \textbf{52.33} & \textbf{91.58} & \textbf{79.33} & \textbf{59.90} & \textbf{71.47} & 70.59 & 79.25 & 93.59 \\
 \end{tabular}
-\end{table}

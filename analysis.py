@@ -1,4 +1,4 @@
-from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS
+from constants import _CACHED_DATA_ROOT, _METRICS, _INPUTS, _IMPORTANT_METRICS, _ALL_DSETNAMES
 import pandas as pd
 from typing import List, Optional, Tuple
 from glob import glob
@@ -16,6 +16,7 @@ plt.rcParams.update(
         "font.family": "sans-serif",
         "font.sans-serif": "cmss10",
         "axes.formatter.use_mathtext": "True",
+        "mathtext.fontset": "stixsans"
     }
 )
 
@@ -284,7 +285,8 @@ class Analyze:
             .replace("0.8", "(Coarse)")
             .replace("0.9", "(Fine)")
             .replace("Thresh ", "")
-        ).title()
+            .replace('Dollarstreet (Fine)', 'Dollarstreet')
+        )
 
     def beautify_methodname(self, methodname: str) -> str:
         renamer = dict(
@@ -298,24 +300,39 @@ class Analyze:
         )
         return renamer[methodname]
 
-    def acc_by_method_table(self):
-        summary = self.baselines_summarize_stats()
-        ours = self.our_best_method()
+    def acc_by_method_table(self, vlm: str = 'both'):
+        # summary = self.baselines_summarize_stats()
+        # ours = self.our_best_method()
+        baselines, ours = self.baselines_and_ours()
+        ours_with_base = pd.concat([baselines, ours])
+        if vlm != 'both':
+            assert vlm in ['clip_ViT-B/16', 'blip-2'], f"Unrecognized vlm: {vlm}"
+            ours_with_base = ours_with_base[ours_with_base.vlm == vlm]
+
+        ours_with_base = ours_with_base[ours_with_base.dsetname.isin(_ALL_DSETNAMES)]
+
+        metrics_to_show = [
+            "accuracy", "average worst subpop accuracy", "avg worst 20th percentile class accs", "avg worst 20th percentile subpop accs", 
+            "avg worst 10th percentile class accs", "avg worst 10th percentile subpop accs", 
+        ]
+
+        summary = ours_with_base.groupby(['method']).mean('accuracy')[metrics_to_show]
+        summary = summary.reindex(["vanilla", "dclip", "waffle", "chils", "ours"])
+        summary = summary.rename(index=self.beautify_methodname)
+
         # Idk why i need to do this groupby 'lamb', but do not fear, there is only one lamb value
-        ours = ours.groupby("method").mean("accuracy")[_IMPORTANT_METRICS]
-        summary = pd.concat([summary, ours])
-        table_str = summary.to_latex(float_format="{:.2f}".format)
-        # with open('for_paper/acc_by_method.txt', 'w') as f:
-        #     f.write(table_str)
+        # ours = ours.groupby("method").mean("accuracy")[_IMPORTANT_METRICS]
+        # summary = pd.concat([summary, ours])
+        table_str = summary.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()#float_format="{:.2f}".format)
+        # save_str = f'for_paper/acc_by_method/{vlm}.txt'
+        with open('for_paper/acc_by_method.txt', 'w') as f:
+            f.write(table_str)
         print(table_str)
 
     def tables_method_by_dset_per_metric(
         self, save_root: str = "for_paper/tables/by_method_and_dset/"
     ):
         os.makedirs(save_root, exist_ok=True)
-        # baselines = self.baseline_numbers()
-        # ours = self.our_best_method()
-        # # ours['method'] = ['ours'] * len(ours)
         baselines, ours = self.baselines_and_ours()
         ours_with_base = pd.concat([baselines, ours])
         grouped = ours_with_base.groupby(["method", "dsetname"]).mean("accuracy")
@@ -326,9 +343,9 @@ class Analyze:
             "avg worst 20th percentile subpop accs",
             "avg worst 10th percentile class accs",
             "avg worst 10th percentile subpop accs",
-            "avg worst 5th percentile class accs",
-            "avg worst 5th percentile subpop accs",
-            "worst class accuracy"
+            # "avg worst 5th percentile class accs",
+            # "avg worst 5th percentile subpop accs",
+            # "worst class accuracy"
         ]
         for metric in metrics_to_show:#_IMPORTANT_METRICS:
             df = (
@@ -338,28 +355,33 @@ class Analyze:
             )
             df = df.reindex(
                 columns=[
-                    "method"
-                    "living17",
-                    "entity13",
-                    "entity30",
-                    "nonliving26",
-                    "dollarstreet__income_level_thresh_0.8",
+                    # "method",
                     "dollarstreet__income_level_thresh_0.9",
                     "geode__region",
                     "mit_states_0.8",
                     "mit_states_0.9",
+                    "entity13",
+                    "entity30",
+                    "nonliving26",
+                    "living17",
+                    # "dollarstreet__income_level_thresh_0.8",
                 ]
             )
             df = df.reindex(["vanilla", "dclip", "waffle", "chils", "ours"])
             df = df.rename(
                 columns=self.beautify_dsetname, index=self.beautify_methodname
             )
+            print(df)
+
+            # df = df.style.highlight_max(axis=0, props="textbf:--rwrap;")
 
             table_str = df.to_latex(
-                index=False,
+                index=True,#False,
                 float_format="%.2f",
                 caption=metric
             )
+
+            table_str = df.style.highlight_max(axis=0, props="textbf:--rwrap;").format(precision=2).to_latex()
             print(table_str)
             with open(f'{save_root}/{metric.replace(" ", "_")}.txt', 'w') as f:
                 f.write(table_str)
@@ -615,15 +637,15 @@ class GeographicShiftTable(BaseTable):
                 "dsetname",
                 "method",
                 "accuracy",
-                "worst region",
-                "worst income",
-                "average worst subpop accuracy",
+                # "worst region",
+                # "worst income",
+                # "average worst subpop accuracy",
                 "avg worst 20th percentile class accs",
                 "avg worst 20th percentile subpop accs",
                 "avg worst 10th percentile class accs",
                 "avg worst 10th percentile subpop accs",
-                "avg worst 5th percentile class accs",
-                "avg worst 5th percentile subpop accs"
+                # "avg worst 5th percentile class accs",
+                # "avg worst 5th percentile subpop accs"
             ]
         ]
         table = self.average_over_trials(table)
@@ -677,7 +699,8 @@ class NonGeographicDatasetsTable(BaseTable):
 
     def make_table(self) -> pd.DataFrame:
         table = self.df[
-            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region"])
+            ~self.df["dsetname"].isin(["dollarstreet__region", "geode__region", "dollarstreet__region_thresh_0.8", "dollarstreet__region_thresh_0.9",
+                                       "dollarstreet__income_level_thresh_0.8", "dollarstreet__income_level_thresh_0.9"])
         ]
         table["dataset_type"] = table["dsetname"].apply(
             lambda x: "States" if "mit_states" in x else "Hierarchical"
@@ -696,8 +719,8 @@ class NonGeographicDatasetsTable(BaseTable):
                 "avg worst 20th percentile subpop accs",
                 "avg worst 10th percentile class accs",
                 "avg worst 10th percentile subpop accs",
-                "avg worst 5th percentile class accs",
-                "avg worst 5th percentile subpop accs"
+                # "avg worst 5th percentile class accs",
+                # "avg worst 5th percentile subpop accs"
             ]
         ]
         table.method = table.method.apply(self.analyzer.beautify_methodname)

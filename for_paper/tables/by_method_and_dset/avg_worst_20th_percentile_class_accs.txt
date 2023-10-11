@@ -1,14 +1,9 @@
-\begin{table}
-\caption{avg worst 20th percentile class accs}
-\begin{tabular}{rrrrrrrrr}
-\toprule
-Methodliving17 & Entity13 & Entity30 & Nonliving26 & Dollarstreet & Dollarstreet & Geode & Mit States (Coarse) & Mit States (Fine) \\
-\midrule
-NaN & 34.38 & 32.50 & 49.15 & 35.31 & 18.60 & 71.63 & 52.12 & 26.79 \\
-NaN & 36.48 & 33.21 & 46.60 & 34.06 & 18.64 & 73.57 & 51.35 & 24.46 \\
-NaN & 31.41 & 33.46 & 48.40 & 34.59 & 18.78 & 74.98 & 52.31 & 25.17 \\
-NaN & 36.07 & 31.71 & 52.05 & 35.95 & 20.04 & 72.19 & 53.65 & 26.82 \\
-NaN & 37.55 & 34.94 & 53.10 & 36.44 & 20.96 & 74.61 & 54.03 & 28.05 \\
-\bottomrule
+\begin{tabular}{lrrrrrrrr}
+dsetname & Dollarstreet & Geode & MIT States (Coarse) & MIT States (Fine) & Entity13 & Entity30 & Nonliving26 & Living17 \\
+method &  &  &  &  &  &  &  &  \\
+Vanilla & 18.60 & 71.63 & 52.12 & 26.79 & 34.38 & 32.50 & 49.15 & 74.00 \\
+DCLIP & 18.64 & 73.57 & 51.35 & 24.46 & 36.48 & 33.21 & 46.60 & \textbf{78.50} \\
+Waffle & 18.78 & \textbf{74.98} & 52.31 & 25.17 & 31.41 & 33.46 & 48.40 & 75.24 \\
+CHiLS & 20.04 & 72.19 & 53.65 & 26.82 & 36.07 & 31.71 & 52.05 & 75.50 \\
+Ours & \textbf{20.96} & 74.61 & \textbf{54.03} & \textbf{28.05} & \textbf{37.55} & \textbf{34.94} & \textbf{53.10} & 76.92 \\
 \end{tabular}
-\end{table}

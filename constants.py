@@ -35,7 +35,7 @@ _INPUTS = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_promp
 
 
 _ALL_DSETNAMES = ['living17', 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9',
-                 'dollarstreet__region', 'geode__region']
+                 'dollarstreet__income_level_thresh_0.9', 'geode__region']
 
 _ALL_ATTRIBUTERS = ['vanilla', 'llm_kinds', 'llm_dclip', 'llm_states', 'auto_global', 'llm_kinds_chils'
                     'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds']
