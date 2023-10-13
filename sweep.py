@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 ### Now let's utilize the cluster like real scientists
 
-def single_pipeline_call(args):
+def single_pipeline_call(args, save_preds: bool=False):
     config = Config(args)
     output_dict = main(config)
     metric_dict = output_dict['metric_dict']
@@ -20,15 +20,12 @@ def single_pipeline_call(args):
     for key in metric_dict:
         args_and_outputs[key] = metric_dict[key]
     
-    args_and_outputs['pred_classnames'] = output_dict['pred_classnames']
-    args_and_outputs['identifiers'] = output_dict['identifiers']
-
-    # keys_to_save = ['dsetname', 'attributer_keys', 'vlm_prompts', 'predictor', 'vlm_prompt_dim_handler', 
-    #                 'vlm', 'lamb', 'accuracy', 'worst class accuracy', 'avg worst 20th percentile class accs', 
-    #                 'average worst subpop accuracy', 'pred_classnames', 'identifiers']
-
-    # keys_to_save = keys_to_save + _REGIONS + _INCOME_LEVELS
-    keys_to_save = _INPUTS + _METRICS
+    keys_to_save = _INPUTS + _METRICS 
+    
+    if save_preds:
+        args_and_outputs['pred_classnames'] = output_dict['pred_classnames']
+        args_and_outputs['identifiers'] = output_dict['identifiers']
+        keys_to_save = keys_to_save + ['pred_classnames', 'identifiers']
 
     results_dict = dict({
         key: args_and_outputs[key] for key in keys_to_save
@@ -46,6 +43,7 @@ def cluster_sweep(
     all_vlms: List[str],
     all_lambs: List[float],
     log_dir: str,
+    save_preds: bool = False
     ):
 
     log_dir_path = os.path.join(_CACHED_DATA_ROOT, 'experiments', log_dir)
@@ -89,7 +87,7 @@ def cluster_sweep(
                                         'lamb': lamb,
                                         'save_path': f'{results_path}/{ctr}.json'
                                     })
-                                    job = executor.submit(single_pipeline_call, args)
+                                    job = executor.submit(single_pipeline_call, args, save_preds)
                                     jobs.append(job)
                                     ctr += 1
 
@@ -518,6 +516,67 @@ def sweep_all_dsets():
             all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'sep20_all_ours_{trial}')
 
 
+def sweep_imagenet():
+    dsetnames = ['imagenetv2']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
+    all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
+
+    for trial in range(10):
+        ### baselines
+        # 1vec 1class baselines: vanilla, dclip, waffle
+        predictors = ['average_sims']
+        lambs = [1]
+        all_attributer_keys = [['vanilla']]
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct12_imagenetv2_vanilla_{trial}')
+        
+        all_attributer_keys = [['vanilla', 'llm_dclip']]
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct12_imagenetv2_dclip_{trial}')
+
+        all_attributer_keys = [['vanilla', 'waffle']]
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct12_imagenetv2_dstreet_waffle_{trial}')
+
+        # and now chils
+        predictors = ['chils']
+        all_attributer_keys = [['vanilla', 'llm_kinds_chils']]
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct12_imagenetv2_chils_{trial}')
+
+        # now a couple of ours
+        predictors = ['average_top_8_sims', 'average_top_16_sims']
+        lambs = [0,0.25]
+        all_attributer_keys = [['vanilla', 'llm_kinds', 'llm_dclip', 'llm_states', 'auto_global', 'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds', 'country']]
+        cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+            all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct12_imagenetv2_ours_{trial}')
+
+def sweep_save_preds_vanilla_and_us():
+    """ small sweep for atypicality analysis. Importantly, we save predictions here. """
+    dsetnames = ['dollarstreet__income_level_thresh_0.9', 'geode__region', 'living17', 
+                 'nonliving26', 'entity13', 'entity30', 'mit_states_0.8', 'mit_states_0.9']
+    vlms = ['clip_ViT-B/16', 'blip2']
+    all_vlm_prompts = [['USE OPENAI IMAGENET TEMPLATES']]
+    all_vlm_prompt_dim_handlers = ['average_and_norm_then_stack']
+
+    ### baselines
+    # 1vec 1class baselines: vanilla, dclip, waffle
+    predictors = ['average_sims']
+    lambs = [1]
+    all_attributer_keys = [['vanilla']]
+    cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+        all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct13_preds_saved_vanilla', save_preds=True)
+
+    # now ours
+    predictors = ['average_top_16_sims']
+    lambs = [0]
+    all_attributer_keys = [['vanilla', 'llm_kinds', 'llm_dclip', 'llm_states', 'auto_global', 'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds', 'country']]
+    cluster_sweep(dsetnames, all_attributer_keys, all_vlm_prompts, predictors, 
+        all_vlm_prompt_dim_handlers, vlms, lambs, log_dir=f'oct13_preds_saved_ours', save_preds=True)
+
+
+
 
 
 if __name__ == '__main__':
@@ -537,7 +596,7 @@ if __name__ == '__main__':
     # sweep_k_and_lamb()
     # sweep_knn()
     # sweep_preds_w_best_attrs()
-    sweep_add_in_attributes()
+    # sweep_add_in_attributes()
     # sweep_attrs_delete_one()
     # sweep_attrs_add_one()
 
@@ -545,3 +604,5 @@ if __name__ == '__main__':
 
     # sweep_new_dstreet()
     # sweep_all_dsets()
+    # sweep_imagenet()
+    sweep_save_preds_vanilla_and_us()

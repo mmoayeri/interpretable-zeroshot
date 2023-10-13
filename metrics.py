@@ -99,7 +99,11 @@ def accuracy_metrics(pred_classnames: List[str], ids: List[str], dset, verbose: 
     sorted_subpop_accs = np.sort(all_subpop_accs)
     num_subpops_in_bot_xth_percentile = dict({x:max(1, int(np.round(x/100 * len(all_subpop_accs)))) for x in [1,5,10,20]})
     for x, num in num_subpops_in_bot_xth_percentile.items():
-        metrics_dict[f'avg worst {x}th percentile subpop accs'] = np.mean(sorted_subpop_accs[:num])
+        if dset.has_gt_attrs:
+            metrics_dict[f'avg worst {x}th percentile subpop accs'] = np.mean(sorted_subpop_accs[:num])
+        else:
+            metrics_dict[f'avg worst {x}th percentile subpop accs'] = np.nan
+
 
     # And what we really care about is accuracy by region / income_level
     accs_by_attr = accuracy_by_region_and_income_level(is_correct_by_id, dset)

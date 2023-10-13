@@ -28,65 +28,6 @@ class LLM(ABC):
         # this function converts that answer string to ['Kit fox', 'Arctic fox', 'Red fox']
         raise NotImplementedError
 
-    def infer_attrs(
-        self, dset,
-        llm_prompts: List[Tuple[str, str]]
-    ) -> Dict[str, List[str]]:
-        '''
-        THIS IS DEPRECATED BUT I'M SCARED / TOO ATTACHED/SENTIMENTAL TO DELETE IT JUST YET.
-        I'm sorry Mark I am not yet fully ruthless in my deleting old code.
-        But officially, llm_prompts is dead. Long live llm_prompts. Attributer is in. 
-        '''
-        attrs_by_class = dict({classname: [] for classname in dset.classnames})
-        for prompt_nickname, llm_prompt in llm_prompts:
-            # Two cases that do not need the LLM: classname only (no attr info) or GT attrs
-            if prompt_nickname == 'classname':
-                # in this case, we add 'None' as an attribute for every class.
-                # When forming a subpop description, the dataset objects will
-                # know to simply return the classname when attribute is None.
-                for classname in attrs_by_class:
-                    attrs_by_class[classname].append(None)
-            elif prompt_nickname == 'groundtruth':
-                assert dset.has_gt_attrs, f"LLM prompt nickname 'groundtruth' cannot \
-                be used for a dataset ({dset.get_dsetname()}) that is not attributed."
-                for classname in attrs_by_class:
-                    attrs_by_class[classname].extend(dset.gt_attrs_by_class(classname))
-            # Otherwise, we ask the LLM for attributes.
-            else:    
-                # We cache LLM responses to avoid asking the LLM the same question
-                # over and over, as it is expensive / takes a while.
-
-                cache_path = os.path.join(
-                    _CACHED_DATA_ROOT,
-                    'subpops_from_llm',
-                    prompt_nickname,
-                    self.get_modelname(),
-                    dset.get_dsetname()
-                ) + '.pkl'
-
-                if os.path.exists(cache_path):
-                    dat = load_cached_data(cache_path)
-                    assert llm_prompt == dat['llm_prompt'], "Attempting to use cached \
-                    LLM responses. However, the exact LLM prompt differs from what is \
-                    passed. This occurs when prompt_name is reused, but the associated \
-                    full llm_prompt has changed. Either use a new prompt_name, change \
-                    the name of the directory _CACHED_DATA_ROOT/subpops_from_llm/prompt_nickname, \
-                    or delete that directory."
-                    answers = dat['answers']
-                else:
-                    answers = dict({classname:self.answer_questions([llm_prompt.format(classname)])[0] 
-                                        for classname in tqdm(dset.classnames)})
-                    # We save the exact prompt as well, since the directory name is actually just the 
-                    # prompt nickname, which is intended to be a one word summary of llm_prompt
-                    save_dict = dict({'answers': answers, 'llm_prompt': llm_prompt})
-                    cache_data(cache_path, save_dict)
-
-                for classname, answer in answers.items():
-                    attrs_in_answer = self.parse_answer(answer)
-                    attrs_by_class[classname].extend(attrs_in_answer)
-
-        return attrs_by_class
-
 class Vicuna(LLM):
 
     def __init__(self, model_key: str ='vicuna-13b-v1.5'):

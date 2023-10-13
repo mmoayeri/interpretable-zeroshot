@@ -1,5 +1,5 @@
 # import argparse
-from datasets import Breeds, DollarstreetDataset, GeodeDataset, MITStates
+from datasets import Breeds, DollarstreetDataset, GeodeDataset, MITStates, ImageNet, ImageNetv2
 from models.vlm import CLIP, InstructBLIP, BLIP2
 from models.llm import Vicuna
 from models.predictor import init_predictor, init_vlm_prompt_dim_handler
@@ -24,6 +24,10 @@ def main(args):
     elif "mit_states" in args.dsetname:
         thresh = float(args.dsetname.split("mit_states_")[-1])
         dset = MITStates(max_allowable_sim_of_classnames=thresh)
+    elif args.dsetname == 'imagenet':
+        dset = ImageNet()
+    elif args.dsetname == 'imagenetv2':
+        dset = ImageNetv2()
     else:
         raise ValueError(
             f"Dataset {args.dsetname} not recognized. Is it implemented? Should be in ./dataset/ directory."
@@ -123,21 +127,23 @@ class Config(object):
 def test_run_full_pipeline():
     args_as_dict = dict(
         {
-            "dsetname": "dollarstreet__income_level_thresh_0.9",#"nonliving26",  # other options: see _ALL_DSETNAMES in constants.py
+            # "dsetname": "living17",#"dollarstreet__income_level_thresh_0.9",  # other options: see _ALL_DSETNAMES in constants.py
+            "dsetname": "imagenetv2",#"nonliving26",  # other options: see _ALL_DSETNAMES in constants.py
             "vlm": "clip_ViT-B/16", # other option: 'blip2'
             "llm": "vicuna-13b-v1.5",
             "attributer_keys": [
                 "vanilla",
-                # "waffle"],#,
-                "llm_kinds",
-                'llm_dclip', 'llm_states', 'auto_global', 'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds', 'country'],
-            # ],  # 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
+                # "waffle",
+                # "llm_kinds_chils",
+                # "llm_dclip",
+                "llm_kinds", 'llm_dclip', 'llm_states', 'auto_global', 'income_level', 'region', 'llm_co_occurring_objects', 'llm_backgrounds', 'country',
+            ],  # 'llm_dclip', 'llm_states', 'auto_global', 'income_level'],#, 'region', 'llm_co_occurring_objects', 'llm_backgrounds'],
             "vlm_prompt_dim_handler": "average_and_norm_then_stack",  #'stack_all',
             "vlm_prompts": [
-                "USE OPENAI IMAGENET TEMPLATES"
-                # "a photo of a {}."
+                # "USE OPENAI IMAGENET TEMPLATES"
+                "a photo of a {}."
             ],  # other options: ['a photo of a {}.'], ['USE CONDENSED OPENAI TEMPLATES']
-            'predictor': 'average_top_8_sims',
+            'predictor': 'average_top_16_sims',
             # 'predictor': 'average_sims',
             # "predictor": "chils",
             "lamb": 0.0,  # this parameter only goes into effect when using average_top_k_{sims or vecs}

@@ -464,7 +464,7 @@ class LLMBased(Attributer):
         )
 
     def caption_subpop(self, classname: str, attr: str):
-        return self.llm_query.caption_subpop(classname, attr)
+        return self.llm_query.caption_subpop(classname, attr.lower())
 
 
 class Waffle(Attributer):
@@ -611,6 +611,8 @@ def init_attributer(key: str, dset: ClassificationDset, llm: LLM) -> Attributer:
         cache_fname = dset.get_dsetname()
         if 'dollarstreet' in cache_fname:
             cache_fname = 'dollarstreet_full'
+        elif 'imagenet' in cache_fname:
+            cache_fname = 'imagenet' # we don't need to re-run LLM for each ImageNet variant, since classes are shared
         attributer = LLMBased(llm=llm, llm_query=query, cache_fname=cache_fname)
     else:
         raise ValueError(f"Attributer key {key} not recognized.")

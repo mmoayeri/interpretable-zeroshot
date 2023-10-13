@@ -263,9 +263,13 @@ class Analyze:
         return ours
 
     def baselines_and_ours(self, our_k:int = 16, our_lamb:float = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        dirs = glob('/checkpoint/mazda/mmmd_results/experiments/sep20_all_*')
+        # dirs = glob('/checkpoint/mazda/mmmd_results/experiments/sep20_all_*')
+        dirs = glob('/checkpoint/mazda/mmmd_results/experiments/oct12_imagenet_*')
         all_df = []
         for d in dirs:
+            # if 'chils' in d:
+            #     continue
+            print(d)
             df = self.collect_jsons_for_sweep(d.split('/')[-1])
             df['method'] = [d.split('/')[-1].split('_')[-2]]*len(df)
             all_df.append(df)
