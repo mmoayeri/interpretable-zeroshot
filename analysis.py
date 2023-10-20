@@ -64,7 +64,7 @@ class Analyze:
             for key in keys:
                 val = single_run_results[key]
                 if type(val) is list:
-                    val = sorted(val)  # alphabetize in case there was any inconsistency
+                    # val = sorted(val)  # alphabetize in case there was any inconsistency
                     val = str(
                         val
                     )  # so that we can groupby if desired; list type is unhashable
@@ -264,7 +264,7 @@ class Analyze:
 
     def baselines_and_ours(self, our_k:int = 16, our_lamb:float = 0) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # dirs = glob('/checkpoint/mazda/mmmd_results/experiments/sep20_all_*')
-        dirs = glob('/checkpoint/mazda/mmmd_results/experiments/oct12_imagenet_*')
+        dirs = glob('/checkpoint/mazda/mmmd_results/experiments/oct12_imagenetv2_*')
         all_df = []
         for d in dirs:
             # if 'chils' in d:
