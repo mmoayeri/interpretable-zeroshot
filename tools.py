@@ -342,7 +342,7 @@ def visualize_bias(dset, d, classname, attr, ids_we_fixed):
 
     try:
         easy_img_in_class = dset[dset.ids_for_subpop(classname, best_attr)[0]][0]
-        hard_img_in_class = dset[hard_ids[min(1, len(hard_ids)-1)]][0]
+        hard_img_in_class = dset[hard_ids[min(0, len(hard_ids)-1)]][0]
     except:
         print(f'Currently dont have images for the class {classname} in {dsetname} saved')
         return
@@ -389,7 +389,7 @@ def construct_ap_and_acc_gain_df(dset):
     identifiers, our_preds, base_preds = [accs_and_preds[key] for key in ['identifiers', 'our_preds', 'base_preds']]
     ids_we_fixed = [idtfr for idtfr, p1, p2 in zip(identifiers, base_preds, our_preds) if ((p1 != p2) and (p2 in dset.valid_classnames_for_id(idtfr)))]
 
-    clsnames, subpops, attrs, classname_aps, subpop_aps, ap_gains, acc_gains = [],[],[],[],[],[],[]
+    clsnames, subpops, attrs, classname_aps, subpop_aps, ap_gains, acc_gains, base_accs = [],[],[],[],[],[],[], []
     for (classname, attr), acc_gain in accs_and_preds['gains']['by_subpop'].items():
         clsnames.append(classname)
         attrs.append(attr)
@@ -399,12 +399,13 @@ def construct_ap_and_acc_gain_df(dset):
         classname_aps.append(classname_ap); subpop_aps.append(subpop_ap)
         ap_gains.append(subpop_ap-classname_ap)
         acc_gains.append(acc_gain)
+        base_accs.append(accs_and_preds['base']['by_subpop'][classname][attr])
 
-    df = pd.DataFrame(zip(clsnames, subpops, attrs, ap_gains, acc_gains, classname_aps, subpop_aps), 
-            columns=['classname', 'subpop', 'attr', 'ap_gain', 'acc_gain', 'classname_ap', 'subpop_ap'])
+    df = pd.DataFrame(zip(clsnames, subpops, attrs, ap_gains, acc_gains, classname_aps, subpop_aps, base_accs), 
+            columns=['classname', 'subpop', 'attr', 'ap_gain', 'acc_gain', 'classname_ap', 'subpop_ap', 'base_acc'])
     return df, ids_we_fixed, accs_and_preds
 
-def save_many_bias_examples(dset, min_ap=0.3, min_gain=10):
+def save_many_bias_examples(dset, min_ap=0.1, min_gain=10):
     df, ids_we_fixed, accs_and_preds = construct_ap_and_acc_gain_df(dset)
     sub_df = df[(df.ap_gain > min_ap) & (df.acc_gain > min_gain)]
     for i, row in sub_df.iterrows():
@@ -454,7 +455,7 @@ def view_many_ap_gain_egs(dset, min_ap=0.3, min_gain=10):
 
 
 
-def compare_to_linear_probe(subsample_factor=None):
+def compare_to_linear_probe(subsample_factor=None, trial=None):
     val_dset = Breeds()
     train_dset = Breeds(inet_split='train')
     vlm = CLIP('ViT-B/16')
@@ -497,7 +498,11 @@ def compare_to_linear_probe(subsample_factor=None):
     results = np.array(results)
     columns = ['frac_arctic_fox', 'num_train_arctic_foxes', 'acc', 'fox_acc', 'arctic_fox_acc']
     df = pd.DataFrame(dict({c:results[:,i] for i,c in enumerate(columns)}))
-    df.to_csv(_CACHED_DATA_ROOT+'arctic_fox_case_study_few_shot.csv')
+    # df.to_csv(_CACHED_DATA_ROOT+'arctic_fox_case_study_few_shot.csv')
+    n_per_class = len(fox_inds['train'])
+    save_path = _CACHED_DATA_ROOT+f'arctic_fox_case_study/trial_{trial}/{n_per_class}_samples_per_class.csv'
+    os.makedirs('/'.join(save_path.split('/')[:-1]), exist_ok=True)
+    df.to_csv(save_path, index=False)
 
 def plot_comparison_to_linear_probe():
     _ZERO_SHOT_BIAS = 32.5 ### DANGER DANGER HARD CODED NUMBER!!!
@@ -528,7 +533,7 @@ def plot_ap_gain_hists():
 
     df = pd.concat(all_dfs)
     f, ax = plt.subplots(1,1, figsize=(6,5))
-    sns.histplot(df, x='ap_gain', y='dsetname', hue='dsetname', ax=axs, legend=True, stat='density')
+    sns.histplot(df, x='ap_gain', y='dsetname', hue='dsetname', ax=ax, legend=True, stat='density')
     ax.set_xlabel('AP of Classname & Attribute - AP of Classname Alone', fontsize=14)
     ax.set_ylabel('')
     ax.set_yticks([])
@@ -544,7 +549,7 @@ if __name__ == '__main__':
     # with executor.batch():
     # for dset in [Breeds(), MITStates(max_allowable_sim_of_classnames=0.8), DollarstreetDataset('income_level')]:
     # for dset in [Breeds(x) for x in ['entity13', 'entity30', 'nonliving26']]:
-    # for dset in [MITStates(max_allowable_sim_of_classnames=0.8)]:#, , DollarstreetDataset('income_level')]:
+    # for dset in [MITStates(max_allowable_sim_of_classnames=0.8), MITStates(max_allowable_sim_of_classnames=0.9)]:#, , DollarstreetDataset('income_level')]:
     # for dset in [DollarstreetDataset('income_level')]:
         # ap_for_classname_vs_subpop(dset, vlm)
         # compare_ours_to_base(dset, vlm)#, classes_to_focus_on=['starting stove', 'bedroom',  'living room', 'street view', 'kitchen sink', 'radio', 'computer', 'tools', 'toilet', 'bathroom/toilet'])
@@ -560,7 +565,18 @@ if __name__ == '__main__':
 
     # dset = Breeds()
 
-    # compare_to_linear_probe()
+
+    executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'logs/arctic_fox_case_study')
+    executor.update_parameters(timeout_min=180, slurm_partition="cml-dpart", slurm_qos="cml-default", 
+                               slurm_account="cml-sfeizi", mem_gb=32, gpus_per_node=1, tasks_per_node=1)
+    jobs = []
+    with executor.batch():
+        for trial in range(5):
+            for subsample_factor in tqdm([1,2,4,8,12,16,20,35,50,65,80,95,110]):
+                jobs.append(executor.submit(compare_to_linear_probe, subsample_factor, trial))
+                # compare_to_linear_probe(subsample_factor=subsample_factor)
+    for i, job in enumerate(jobs):
+        print(f"Result of job {i}: {job.result()}")
     # plot_comparison_to_linear_probe()
 
-    plot_diversity_scattters()
+    # plot_diversity_scattters()
