@@ -659,7 +659,6 @@ def plot_ap_gain_hists():
         }
     )
 
-
     analyzer = Analyze()
     all_dfs = []
     for dset in [Breeds('entity13'), Breeds('entity30'), Breeds('nonliving26'), Breeds('living17'), 
@@ -732,10 +731,62 @@ def record_problem_classes(dsetname='mit_states', thresh=0.85):
     problem_class_names = [dset.classnames[i] for i in problem_classes]
     cache_data(f'/checkpoint/mazda/data/meta_files/{dsetname}_problem_classes_thresh_{thresh}.pkl', problem_class_names)
 
+def atypicality_analysis(vlm):
+    """
+    To get some more evidence that we improve accuracy most on atypical instances, we're going to inspect 
+    'atypicality' per instance, and compare our preds to theirs. 
+    """
+
+    results = dict()
+    cache_path = os.path.join(_CACHED_DATA_ROOT, 'diversity_acc_by_dset.pkl')
+    for dset in tqdm(_ALL_DSETNAMES):#
+        vanilla_df = analyzer.collect_jsons_for_sweep('oct13_preds_saved_vanilla/', do_not_return_preds=False)
+        df = analyzer.collect_jsons_for_sweep('oct13_preds_saved_ours/', do_not_return_preds=False)
+
+        vanilla_preds, vanilla_ids = [literal_eval(vanilla_df[(vanilla_df.dsetname == 'entity13') & (vanilla_df.vlm == 'clip_ViT-B/16')].iloc[0][x]) for x in ['pred_classnames', 'identifiers']]
+        our_preds, our_ids = [literal_eval(df[(df.dsetname == 'entity13') & (df.vlm == 'clip_ViT-B/16')].iloc[0][x]) for x in ['pred_classnames', 'identifiers']]
+
+        vanilla_is_correct_by_id = mark_as_correct(vanilla_preds, vanilla_ids, dset)
+
+        ### A couple atypicality measures
+
+        dist_to_mean_dict, sim_to_classname_dict = dict(), dict()
+        for classname in dset.classnames:
+            ids = dset.ids_for_class(classname)
+            class_idx = np.array([i for i,idtfr in enumerate(identifiers) if idtfr in ids])
+            mean_class_embedding = image_embeddings[class_idx].mean(0)
+
+            classname_embedding = vlm.encode_texts(['a photo of a '+classname])
+            classname_embedding /= classname_embedding.norm(dim=-1,keepdim=True)
+            for i in class_idx:
+                dist_to_mean_dict[identifiers[i]] = (image_embeddings[i] - mean_class_embedding).norm().item()
+                sim_to_classname_dict[identifiers[i]] = cos_sim(image_embeddings[i], classname_embedding).item()
+        
+        dists_to_mean, sims_to_classname = [[d[idtfr] for idtfr in our_ids] for d in [dist_to_mean_dict, sim_to_classname_dict]]
+        vanilla_is_corrects, our_is_corrects = [[d[idtfr] for idtfr in our_ids] for d in [vanilla_is_correct_by_id, our_is_correct_by_id]]
+        joint_df = pd.DataFrame(zip(our_ids, dists_to_mean, sims_to_classname, vanilla_is_corrects, our_is_corrects), columns=['ids','sim_to_classname', 'dist_to_mean','vanilla_is_correct', 'our_is_correct'])
+
+        bins = np.linspace(joint_df.sim_to_classname.min(), joint_df.sim_to_classname.max(), 20)
+        o = pd.cut(joint_df.sim_to_classname, bins)
+        avged = joint_df.groupby(o)[['sim_to_classname','vanilla_is_correct','our_is_correct']].mean()
+
+        f, ax = plt.subplots(1,1, figsize=(4,4))
+        ax.set_facecolor((0.93,0.93,0.93)); ax.grid(color='white', zorder=0)
+        ax.plot(avged.sim_to_classname, avged.vanilla_is_correct, color='blue', label='Vanilla', zorder=6)
+        ax.plot(avged.sim_to_classname, avged.our_is_correct, color='green', label='Ours', zorder=6)
+        ax.legend(); ax.set_ylabel('Accuracy', fontsize=16); ax.set_xlabel('Typicality', fontsize=16);
+        f.tight_layout(); f.savefig('plots/atypicality/accs_ours_v_vanilla.jpg', dpi=300)
+
+        f, ax = plt.subplots(1,1, figsize=(4,4))
+        ax.set_facecolor((0.93,0.93,0.93)); ax.grid(color='white', zorder=0)
+        xs = [0.5*(bins[i+1]-bins[i])+bins[i] for i in range(19)]
+        avged['gains'] = avged.our_is_correct - avged.vanilla_is_correct
+        ax.set_xlabel('Typicality', fontsize=16); ax.set_ylabel('Accuracy Gain', fontsize=16); f.tight_layout(); f.savefig('plots/atypicality/acc_gain.jpg', dpi=300)
+
 
 if __name__ == '__main__':
-    executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'aps_by_class_and_subpop/')
-    executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", mem_gb=80, gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
+    # executor = submitit.AutoExecutor(folder=_CACHED_DATA_ROOT+'/aps_by_class_and_subpop_experiments/')
+    # executor.update_parameters(timeout_min=180, slurm_partition="learnlab,devlab", mem_gb=80, gpus_per_node=1, tasks_per_node=1, slurm_constraint='volta32gb,ib4')
 
     # executor.update_parameters(timeout_min=180, slurm_partition="cml-dpart", slurm_qos="cml-default", slurm_account="cml-sfeizi", mem_gb=32, gpus_per_node=1, tasks_per_node=1)
     jobs = []

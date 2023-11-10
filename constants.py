@@ -12,6 +12,7 @@
 ### These are the versions that should be used when operating on devfair
 _CACHED_DATA_ROOT = '/checkpoint/mazda/mmmd_results'
 _IMAGENET_DATA_ROOT = '/datasets01/imagenet_full_size/061417/'
+_IMAGENETV2_DATA_ROOT = '/checkpoint/mazda/data/imagenetv2-matched-frequency-format-val/'
 _DSTREET_DATA_ROOT = '/checkpoint/meganrichards/datasets/dollarstreet_kaggle/dataset_dollarstreet/'
 _MIT_STATES_DATA_ROOT = '/checkpoint/mazda/data/mit_states'
 _BREEDS_INFO_FPATH = '/private/home/mazda/multiple_cls_vecs/datasets/breeds_info.json'

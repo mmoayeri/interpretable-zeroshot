@@ -34,14 +34,14 @@ class VLMPromptDimHandler(ABC):
         self, 
         embeddings_by_subpop_by_cls: Dict[str, Dict[str, Tensor]]
     ) -> Tuple[Dict[str, Tensor], Dict[str, List[str]]]:
-        text_embeddings_by_cls = dict({
-            classname: self.convert_embeddings_for_one_class(embeddings_by_subpop)
-                for classname, embeddings_by_subpop in embeddings_by_subpop_by_cls.items()
-        })
+        # text_embeddings_by_cls = dict({
+        #     classname: self.convert_embeddings_for_one_class(embeddings_by_subpop)
+        #         for classname, embeddings_by_subpop in embeddings_by_subpop_by_cls.items()
+        # })
         text_embeddings_by_cls, subpop_captions_by_cls = dict(), dict()
         for classname, embeddings_by_subpop in embeddings_by_subpop_by_cls.items():
             embeddings_for_cls, subpop_captions = self.convert_embeddings_for_one_class(embeddings_by_subpop)
-            text_embeddings_by_cls[classname] = embeddings_for_cls
+            text_embeddings_by_cls[classname] = embeddings_for_cls.cuda()
             subpop_captions_by_cls[classname] = subpop_captions
 
         return text_embeddings_by_cls, subpop_captions_by_cls
@@ -184,7 +184,7 @@ class CHiLS(Predictor):
         assert sum([(classname not in text_embeddings_by_subpop_by_cls[classname]) for classname in classnames]) == 0, \
             "Missing classname alone as subpop for each class. You must include 'vanilla' as attributer when using CHiLS." 
         classname_only_embeddings_dict = dict({
-            classname: text_embeddings_by_subpop_by_cls[classname][classname].mean(0, keepdim=True)
+            classname: text_embeddings_by_subpop_by_cls[classname][classname].mean(0, keepdim=True).cuda()
                 for classname in classnames
         })
         superclass_sims = self.aux_predictor.compute_logits(image_embeddings, classname_only_embeddings_dict, classnames, weights_by_cls)

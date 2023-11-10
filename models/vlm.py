@@ -99,7 +99,7 @@ class VLM(ABC):
                     {
                         subpop_caption: self.encode_texts(
                             subpop_caption_in_vlm_templates
-                        )
+                        ).detach().cpu()
                         for subpop_caption, subpop_caption_in_vlm_templates in subpop_dict.items()
                     }
                 )
