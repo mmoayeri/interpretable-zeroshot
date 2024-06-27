@@ -1,12 +1,27 @@
-# pretty-mmmd
-XTREME MAKEOVER: repo edition. 
+# Interpretable Zero-shot Classification Beyond One Vector Per Class
 
-New cleaner version of mmmd repo, which allows for running the whole pipeline end to end. 
+Official code for FAccT 2024 paper [Embracing Diversity: Interpretable Zero-shot Classification Beyond One Vector Per Class](https://dl.acm.org/doi/pdf/10.1145/3630106.3659039). Demo + repo clean up coming soon.
 
-*WORK IN PROGRESS*
+# Citation
 
-Tests:
-`python -m pytest tests/`
+```
+@inproceedings{10.1145/3630106.3659039,
+author = {Moayeri, Mazda and Rabbat, Michael and Ibrahim, Mark and Bouchacourt, Diane},
+title = {Embracing Diversity: Interpretable Zero-shot Classification Beyond One Vector Per Class},
+year = {2024},
+isbn = {9798400704505},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+url = {https://doi.org/10.1145/3630106.3659039},
+doi = {10.1145/3630106.3659039},
+booktitle = {Proceedings of the 2024 ACM Conference on Fairness, Accountability, and Transparency},
+pages = {2302–2321},
+numpages = {20},
+keywords = {Bias, Classification, Fairness, Vision Language Models (VLMs), Zero-shot},
+location = {Rio de Janeiro, Brazil},
+series = {FAccT '24}
+}
+```
 
 # How to run pipeline end2end
 
